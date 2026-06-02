@@ -1,0 +1,21 @@
+{
+  "name": "birdwing-cloud-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "众翼云鉴：智能鸟类摄享平台 - Web前端",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0",
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "sass": "^1.77.0",
+    "vite": "^5.4.0"
+  }
+}
