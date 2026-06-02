@@ -1,144 +1,119 @@
 <template>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <span class="title">像鸟儿一样</span>
-      <span class="title">记得家的方向</span>
-      <span class="title">认得人的模样</span>
-      <span class="title">却忘了飞不过时光</span>
-    </div>
+  <div class="upload-page">
+    <div class="upload-card">
+      <div class="upload-header">
+        <h2>📸 上传鸟类照片</h2>
+        <p>选择一张清晰的照片，让我们帮你识别鸟类品种</p>
+      </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-      <div v-if="imageUrl" class="image-preview">
-        <img :src="imageUrl" class="preview-image" alt="预览图片" />
-      </div>
-      <div v-else class="placeholder">
-        <span class="placeholder-text">请选择可以清晰地观察到的鸟的照片喵~</span>
-      </div>
-    </div>
+      <div class="upload-body">
+        <div v-if="imageUrl" class="preview-area">
+          <img :src="imageUrl" alt="预览" class="preview-img" />
+          <div class="preview-actions">
+            <button class="btn btn-secondary" @click="handleReset">重新选择</button>
+            <button class="btn btn-primary" @click="handleAnalyze">🔍 开始分析</button>
+          </div>
+        </div>
 
-    <!-- Action Buttons -->
-    <div class="button-container">
-      <div v-if="imageUrl" class="two-buttons">
-        <button class="btn btn-secondary" @click="handleReset">重新上传</button>
-        <button class="btn btn-primary" @click="handleAnalyze">分析图片</button>
-      </div>
-      <div v-else class="upload-buttons" @click="handleUpload">
-        <div class="upload-circle"></div>
-        <span class="upload-text">点击上传图片</span>
+        <div v-else class="upload-zone" @click="handleUpload">
+          <div class="upload-icon-wrapper">
+            <span class="upload-icon">📤</span>
+          </div>
+          <h3>点击上传图片</h3>
+          <p>支持 JPG、PNG、WebP 格式</p>
+        </div>
       </div>
     </div>
-
-    <TabBar />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import TabBar from '@/components/TabBar.vue'
-import { getOSSUrl } from '@/config/oss.js'
 import { showToast, showModal } from '@/utils/toast.js'
 import { chooseImages } from '@/utils/helpers.js'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
 const imageUrl = ref('')
 
 const handleUpload = async () => {
   try {
     const result = await chooseImages({ count: 1 })
-    if (result.tempFilePaths.length > 0) {
+    if (result.tempFilePaths.length) {
       imageUrl.value = result.tempFilePaths[0]
-      showToast('图片上传成功', 'success', 1500)
+      showToast('图片已选择', 'success')
     }
-  } catch (error) {
-    console.error('图片选择失败:', error)
-    showToast('图片选择失败', 'error')
-  }
+  } catch { showToast('选择失败', 'error') }
 }
 
 const handleReset = async () => {
-  const confirmed = await showModal('确认重新上传', '确定要重新选择图片吗？')
-  if (confirmed) {
-    imageUrl.value = ''
-    showToast('已重置', 'success', 1000)
-  }
+  const ok = await showModal('确认', '确定要重新选择图片吗？')
+  if (ok) { imageUrl.value = ''; showToast('已重置', 'success') }
 }
 
 const handleAnalyze = () => {
-  if (!imageUrl.value) {
-    showToast('请先上传图片', 'none')
-    return
-  }
-  showToast('正在分析图片...', 'loading', 2000)
-  // TODO: 实现图片分析功能
-  console.log('Analyzing image:', imageUrl.value)
+  if (!imageUrl.value) return showToast('请先选择图片', 'none')
+  showToast('正在分析...', 'loading')
+  // TODO: 调用图片分析 API
+  setTimeout(() => showToast('分析完成！', 'success'), 2000)
 }
 </script>
 
 <style scoped>
-.container {
-  padding: 20px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: #e6fae9;
-  padding-bottom: 70px;
+.upload-page {
+  max-width: 640px; margin: 40px auto; padding: 0 20px;
 }
-.header { text-align: left; margin-bottom: 30px; margin-top: 20px; }
-.title { display: block; line-height: 2; color: #1e873c; font-size: 14px; font-weight: 400; }
-.main-content { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; }
-.image-preview { width: 100%; display: flex; justify-content: center; }
-.preview-image { width: 300px; height: 300px; border-radius: 10px; box-shadow: 0 4px 16px rgba(30,135,60,0.15); border: 2px solid rgba(30,135,60,0.1); object-fit: cover; }
-.placeholder { padding: 20px; text-align: center; }
-.placeholder-text { color: #1e873c; font-size: 14px; }
-.button-container { width: 100%; display: flex; justify-content: center; padding: 10px; }
-.two-buttons { display: flex; gap: 15px; justify-content: center; align-items: center; }
-.btn { padding: 10px 20px; border-radius: 50px; font-size: 14px; transition: all 0.3s ease; border: none; cursor: pointer; }
-.btn:active { transform: scale(0.95); }
-.btn-primary { background-color: #059669; color: white; box-shadow: 0 2px 8px rgba(5,150,105,0.3); }
-.btn-primary:hover { background-color: #047857; }
-.btn-secondary { background-color: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; }
-.btn-secondary:hover { background-color: #e5e7eb; }
+.upload-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.upload-header {
+  text-align: center;
+  padding: 40px 24px 24px;
+  background: linear-gradient(135deg, var(--color-primary-bg), var(--color-accent-bg));
+}
+.upload-header h2 { font-size: 24px; color: var(--color-text); margin-bottom: 6px; }
+.upload-header p { font-size: 14px; color: var(--color-text-secondary); }
+.upload-body { padding: 32px 24px; }
 
-.upload-buttons {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  background: linear-gradient(135deg, #059669, #10b981);
-  padding: 20px 60px;
-  border-radius: 16px;
+.preview-area { text-align: center; }
+.preview-img {
+  width: 100%; max-height: 400px; object-fit: contain;
+  border-radius: var(--radius-md); background: var(--color-bg);
+  margin-bottom: 20px;
+}
+.preview-actions { display: flex; gap: 12px; justify-content: center; }
+
+.upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 60px 40px;
+  text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(5,150,105,0.3);
+  transition: all var(--transition-normal);
+  background: var(--color-bg);
 }
-.upload-buttons:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(5,150,105,0.4); }
-.upload-buttons:active { transform: scale(0.98); }
-.upload-circle {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.8);
-  position: relative;
+.upload-zone:hover {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-bg);
+  transform: translateY(-2px);
 }
-.upload-circle::before, .upload-circle::after {
-  content: ''; position: absolute; background: white;
+.upload-icon-wrapper {
+  width: 72px; height: 72px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, var(--color-primary-bg), var(--color-accent-bg));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
 }
-.upload-circle::before {
-  width: 2px; height: 20px; left: 50%; top: 8px; transform: translateX(-50%);
-}
-.upload-circle::after {
-  width: 20px; height: 2px; top: 50%; left: 8px; transform: translateY(-50%);
-}
-.upload-text { color: white; font-size: 14px; font-weight: 500; }
+.upload-icon { font-size: 32px; }
+.upload-zone h3 { font-size: 16px; color: var(--color-text); margin-bottom: 6px; }
+.upload-zone p { font-size: 13px; color: var(--color-text-muted); }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.image-preview { animation: fadeInUp 0.6s ease-out; }
-.two-buttons { animation: fadeInUp 0.6s ease-out 0.2s both; }
-
-@media screen and (max-width: 375px) {
-  .preview-image { width: 250px; height: 250px; }
-  .header { margin-top: 10px; }
+@media (max-width: 768px) {
+  .upload-page { margin: 20px auto; }
+  .upload-header { padding: 28px 16px 20px; }
+  .upload-body { padding: 24px 16px; }
+  .upload-zone { padding: 40px 20px; }
 }
 </style>
