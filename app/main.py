@@ -1,5 +1,5 @@
 """
-观鸟小程序 - 后端入口
+鸟趣 - 观鸟识别与分享平台后端
 FastAPI + MySQL
 """
 from contextlib import asynccontextmanager
@@ -16,13 +16,13 @@ async def lifespan(app: FastAPI):
     """应用生命周期：启动时初始化数据库"""
     init_db()
     print(f"[INFO] API docs: http://localhost:{settings.PORT}/docs")
-    print("[INFO] Bird watching backend started!")
+    print("[OK] 鸟趣后端启动成功!")
     yield
 
 
 # 创建应用
 app = FastAPI(
-    title="观鸟小程序 API",
+    title="鸟趣 API",
     description="鸟趣 - 观鸟识别与分享平台",
     version="1.0.0",
     docs_url="/docs",
@@ -54,7 +54,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 def root():
     """根路径"""
     return {
-        "name": "观鸟小程序 API",
+        "name": "鸟趣 API",
         "version": "1.0.0",
         "docs": "/docs",
         "status": "running",

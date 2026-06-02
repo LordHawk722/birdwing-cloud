@@ -776,7 +776,7 @@ GET /
 
 ```json
 {
-  "name": "观鸟小程序 API",
+  "name": "鸟趣 API",
   "version": "1.0.0",
   "docs": "/docs",
   "status": "running"
