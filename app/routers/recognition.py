@@ -1,9 +1,11 @@
 """AI 识别记录路由"""
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
-from app.models import User, RecognitionRecord
+from app.models import User, RecognitionRecord, Bird
 from app.schemas import (
     RecognitionCreate, RecognitionRecordInfo,
     ResponseWrapper, Pagination,
@@ -12,28 +14,37 @@ from app.services.auth import get_current_user
 from app.services.bird_ai import recognize_bird
 from app.utils import is_allowed_file, save_upload_file
 from app.routers.upload import ALLOWED_EXT_NAMES
+from app.models import Bird
 
 router = APIRouter(prefix="/api/recognition", tags=["识别"])
 
 
+class AnalyzeRequest(BaseModel):
+    """AI 分析请求"""
+    image_url: Optional[str] = None
+
+
 @router.post("/analyze", response_model=ResponseWrapper)
 async def analyze_image(
+    data: AnalyzeRequest = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     AI 分析图片中的鸟类
-    注意：前端需要先调用上传接口获取图片URL，然后将URL传入此接口
-    或者直接上传图片到此接口（TODO：支持直接上传）
-    当前实现：从数据库中随机返回3种鸟作为识别结果（模拟模式）
+
+    前端可先上传图片获取URL，再传入此接口分析；
+    当前为模拟模式，从数据库中随机返回3种鸟作为识别结果。
     """
+    image_url = data.image_url if data and data.image_url else ""
+
     # 调用 AI 识别服务
-    result = await recognize_bird("", db)
+    result = await recognize_bird(image_url, db)
 
     # 保存识别记录
     record = RecognitionRecord(
         user_id=current_user.id,
-        image_url="",  # 前端上传后再关联
+        image_url=image_url,
         result=result,
     )
     db.add(record)
@@ -42,6 +53,7 @@ async def analyze_image(
 
     return ResponseWrapper(data={
         "record_id": record.id,
+        "image_url": image_url,
         "results": result,
     })
 
@@ -103,7 +115,6 @@ def create_record(
 
     # 增加对应鸟类的搜索次数
     for item in data.result:
-        from app.models import Bird
         bird = db.query(Bird).filter(Bird.id == item.bird_id).first()
         if bird:
             bird.search_count = (bird.search_count or 0) + 1

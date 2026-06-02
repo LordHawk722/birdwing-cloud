@@ -1,6 +1,6 @@
 """Pydantic 数据模型（请求/响应格式）"""
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -12,7 +12,7 @@ class ResponseWrapper(BaseModel):
     """统一响应格式"""
     code: int = 200
     message: str = "success"
-    data: Optional[object] = None
+    data: Optional[Any] = None
 
 
 class Pagination(BaseModel):

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models import User, Post, PostLike, Comment
 from app.schemas import (
     PostCreate, PostUpdate, PostInfo, PostListItem,
-    CommentCreate, CommentInfo,
+    CommentCreate, CommentInfo, UserInfo,
     ResponseWrapper, Pagination,
 )
 from app.services.auth import get_current_user, get_optional_user
@@ -208,14 +208,10 @@ def list_comments(
             id=comment.id,
             post_id=comment.post_id,
             content=comment.content,
-            user=User(
-                id=user.id,
-                username=user.username,
-                nickname=user.nickname,
-                avatar=user.avatar or "",
-                bio=user.bio or "",
-                created_at=user.created_at,
-            ) if user else None,
+            user=UserInfo.model_validate(user) if user else UserInfo(
+                id=0, username="[已删除]", nickname="[已删除]",
+                avatar="", bio="", created_at=datetime.now(),
+            ),
             created_at=comment.created_at,
         ))
 
