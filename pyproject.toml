@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+# 显示详细输出 + 打印语句
+addopts = "-v -s"
+# 标记测试类别
+markers = [
+    "users: 用户模块测试",
+    "posts: 帖子模块测试",
+    "birds: 鸟类模块测试",
+    "upload: 上传模块测试",
+    "recognition: 识别模块测试",
+    "auth: 认证相关测试",
+]
