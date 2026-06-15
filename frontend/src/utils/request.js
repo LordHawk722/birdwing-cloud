@@ -40,9 +40,9 @@ http.interceptors.request.use(
     config.headers['X-Client-Type'] = 'web'
     config.headers['X-Client-Version'] = '1.0.0'
 
-    // 显示loading
+    // 显示loading（需显式传入 showLoading: true 才启用）
     const requestId = generateRequestId(config)
-    if (config.showLoading !== false) {
+    if (config.showLoading === true) {
       loadingStates.add(requestId)
       showLoading(config.loadingText || '加载中...')
     }

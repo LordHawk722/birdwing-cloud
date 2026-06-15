@@ -198,12 +198,27 @@ export function chooseImages(options = {}) {
     input.type = 'file'
     input.accept = accept
     input.multiple = count > 1
+
+    let settled = false
     input.onchange = (e) => {
+      settled = true
       const files = Array.from(e.target.files)
+      if (files.length === 0) { reject(new Error('未选择文件')); return }
       const urls = files.map(f => URL.createObjectURL(f))
       resolve({ tempFilePaths: urls, files })
     }
-    input.onerror = reject
+    input.onerror = () => { settled = true; reject(new Error('选择文件失败')) }
+
+    // 用户取消文件选择对话框时，onchange 不会触发
+    // 通过监听窗口重新获得焦点来检测取消操作
+    const onFocus = () => {
+      setTimeout(() => {
+        if (!settled) { settled = true; reject(new Error('取消选择')) }
+      }, 300)
+      window.removeEventListener('focus', onFocus)
+    }
+    window.addEventListener('focus', onFocus)
+
     input.click()
   })
 }

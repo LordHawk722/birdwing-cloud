@@ -59,9 +59,19 @@ export function getOSSUrl(filename, size = 'icon') {
 
   const cleanFilename = filename.startsWith('/') ? filename.slice(1) : filename
 
-  // 如果已经是完整URL，直接返回
+  // 如果已经是完整 URL，直接返回
   if (cleanFilename.startsWith('http://') || cleanFilename.startsWith('https://')) {
     return cleanFilename
+  }
+
+  // 后端上传的文件（uploads/ 开头）不是 OSS 资源，直接返回相对路径
+  if (cleanFilename.startsWith('uploads/')) {
+    return '/' + cleanFilename
+  }
+
+  // 前端本地静态资源（static/ 开头）也直接返回相对路径
+  if (cleanFilename.startsWith('static/')) {
+    return '/' + cleanFilename
   }
 
   const baseUrl = OSS_CONFIG.endpoint

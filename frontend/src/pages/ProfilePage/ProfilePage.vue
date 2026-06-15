@@ -27,17 +27,6 @@
       </div>
     </div>
 
-    <!-- 成就条（浅金色背景） -->
-    <div class="achievement-strip">
-      <div class="strip-inner">
-        <span class="strip-label">🏅 成就</span>
-        <span class="achievement-tag earned">🐣 初级观鸟员</span>
-        <span class="achievement-tag earned">📸 摄影新手</span>
-        <span class="achievement-tag locked">🔒 资深摄影师</span>
-        <span class="achievement-tag locked">🔒 鸟类专家</span>
-      </div>
-    </div>
-
     <!-- 内容区：标签页 + 网格 -->
     <div class="content-section">
       <div class="section-inner">
@@ -77,11 +66,44 @@
         </template>
       </div>
     </div>
+
+    <!-- 编辑资料弹窗 -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="cancelEditProfile">
+      <div class="edit-profile-modal">
+        <h3>✏️ 编辑资料</h3>
+        <div class="form-group">
+          <label class="form-label">昵称</label>
+          <input
+            v-model="editForm.nickname"
+            class="input-field"
+            placeholder="输入昵称（最多 100 字）"
+            maxlength="100"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">个人介绍</label>
+          <textarea
+            v-model="editForm.bio"
+            class="input-field input-textarea"
+            placeholder="介绍一下自己，让大家更了解你..."
+            maxlength="500"
+            rows="3"
+          ></textarea>
+        </div>
+        <div v-if="editError" class="error-banner">{{ editError }}</div>
+        <div class="modal-buttons">
+          <button class="btn btn-secondary" @click="cancelEditProfile" :disabled="editSaving">取消</button>
+          <button class="btn btn-primary" @click="saveEditProfile" :disabled="editSaving">
+            {{ editSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import HomePoster from '@/components/HomePoster.vue'
 import UserService from '@/api/services/user.js'
 import PostService from '@/api/services/post.js'
@@ -124,6 +146,7 @@ const userAvatarUrl = computed(() => {
   const a = userInfo.value.avatar || ''
   if (!a) return 'static/default-avatar.png'
   if (a.startsWith('http') || a.startsWith('blob:')) return a
+  // getOSSUrl 已内置处理：uploads/ → 直接相对路径，static/ → 本地静态资源，其他 → OSS
   return getOSSUrl(a, 'avatar')
 })
 
@@ -195,18 +218,20 @@ async function handleAvatarClick() {
     const result = await chooseImages({ count: 1 })
     if (!result.files?.length) return
 
-    showToast('上传中...', 'loading')
+    // axios 拦截器会自动显示/隐藏 loading，无需手动 showToast
     const uploadRes = await UploadService.uploadImage(result.files[0])
     const uploadedUrl = uploadRes.data?.data?.url
-    if (uploadedUrl) {
-      // 先本地预览
-      userInfo.value.avatar = result.tempFilePaths[0]
-      // 更新到后端
-      await UserService.updateProfile({ avatar: uploadedUrl })
-      // 重新拉取
-      await loadUserProfile()
-      showToast('头像已更新', 'success')
+    if (!uploadedUrl) {
+      showToast('上传失败：服务器未返回图片地址', 'error')
+      return
     }
+    // 先本地预览
+    userInfo.value.avatar = result.tempFilePaths[0]
+    // 更新到后端
+    await UserService.updateProfile({ avatar: uploadedUrl })
+    // 重新拉取确保数据一致
+    await loadUserProfile()
+    showToast('头像已更新', 'success')
   } catch (err) {
     showToast(err?.message || '上传失败', 'error')
   }
@@ -230,8 +255,55 @@ async function handleEditBio() {
   }
 }
 
+// ---- 编辑资料弹窗 ----
+const showEditModal = ref(false)
+const editSaving = ref(false)
+const editError = ref('')
+const editForm = reactive({ nickname: '', bio: '' })
+
 function handleEditProfile() {
-  showToast('编辑资料功能开发中', 'none')
+  editForm.nickname = userInfo.value.nickname || ''
+  editForm.bio = userInfo.value.bio || ''
+  editError.value = ''
+  showEditModal.value = true
+}
+
+function cancelEditProfile() {
+  if (editSaving.value) return
+  showEditModal.value = false
+}
+
+async function saveEditProfile() {
+  editError.value = ''
+  editSaving.value = true
+  try {
+    const updateData = {}
+    const nn = editForm.nickname.trim()
+    if (nn && nn !== userInfo.value.nickname) {
+      if (nn.length > 100) { editError.value = '昵称不能超过 100 个字符'; editSaving.value = false; return }
+      updateData.nickname = nn
+    }
+    if (editForm.bio !== (userInfo.value.bio || '')) {
+      updateData.bio = editForm.bio || ''
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      showEditModal.value = false
+      editSaving.value = false
+      return
+    }
+
+    await UserService.updateProfile(updateData)
+    userInfo.value.nickname = updateData.nickname ?? userInfo.value.nickname
+    userInfo.value.bio = updateData.bio ?? userInfo.value.bio
+    auth.updateUser({ nickname: userInfo.value.nickname, bio: userInfo.value.bio })
+    showEditModal.value = false
+    showToast('资料已更新', 'success')
+  } catch (err) {
+    editError.value = err?.message || '保存失败，请稍后重试'
+  } finally {
+    editSaving.value = false
+  }
 }
 
 function switchTab(key) {
@@ -299,23 +371,6 @@ onMounted(() => {
 }
 .banner-edit-btn:hover { background: rgba(255,255,255,0.25); }
 
-/* ========== 成就条 ========== */
-.achievement-strip {
-  background: linear-gradient(90deg, #fffbeb, #fef3c7, #fffbeb);
-  border-bottom: 2px solid rgba(245,158,11,0.1);
-  padding: 0;
-}
-.strip-inner {
-  max-width: 1000px; margin: 0 auto; padding: 12px 32px;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-.strip-label { font-size: 13px; font-weight: 700; color: #92400e; margin-right: 4px; }
-.achievement-tag {
-  padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-}
-.achievement-tag.earned { background: rgba(245,158,11,0.15); color: #92400e; }
-.achievement-tag.locked { background: rgba(0,0,0,0.04); color: #b0b0b0; }
-
 /* ========== 内容区 ========== */
 .content-section {
   background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
@@ -370,7 +425,6 @@ onMounted(() => {
   .banner-stats { justify-content: center; }
   .banner-bio { margin-left: auto; margin-right: auto; }
   .banner-edit-btn { position: static; }
-  .strip-inner { padding: 12px 20px; }
   .section-inner { padding: 20px 16px 40px; }
   .content-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
@@ -378,4 +432,42 @@ onMounted(() => {
   .content-grid { grid-template-columns: 1fr; }
   .banner-name-row { flex-direction: column; gap: 6px; }
 }
+
+/* ========== 编辑资料弹窗 ========== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.edit-profile-modal {
+  width: 100%; max-width: 420px;
+  background: var(--color-surface); border-radius: var(--radius-xl);
+  padding: 28px 24px; box-shadow: var(--shadow-xl);
+}
+.edit-profile-modal h3 {
+  font-size: 18px; font-weight: 700; color: var(--color-text);
+  margin-bottom: 20px;
+}
+.form-label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--color-text); margin-bottom: 6px;
+}
+.input-field {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  font-size: 14px; color: var(--color-text); background: var(--color-bg);
+  transition: border-color var(--transition-fast); outline: none; box-sizing: border-box;
+}
+.input-field:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+.input-textarea { resize: vertical; min-height: 80px; }
+.error-banner {
+  background: #fef2f2; color: #dc2626; padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px;
+  border: 1px solid #fecaca;
+}
+.modal-buttons {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;
+}
+.modal-buttons .btn { padding: 8px 20px; font-size: 14px; }
 </style>
