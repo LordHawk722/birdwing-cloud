@@ -15,11 +15,7 @@
           <span class="ai-status">{{ getAIStatus() }}</span>
         </div>
       </div>
-      <div class="navbar-right">
-        <div class="menu-btn" @click="showMenu">
-          <span class="menu-icon">⋯</span>
-        </div>
-      </div>
+      <div class="navbar-right"></div>
     </div>
 
     <!-- 消息列表 -->
@@ -106,10 +102,11 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getOSSUrl } from '@/config/oss.js'
-import { showToast, showActionSheet, showModal } from '@/utils/toast.js'
+import { showToast } from '@/utils/toast.js'
+import { marked } from 'marked'
 import { chooseImages, vibrate } from '@/utils/helpers.js'
 import RecognitionService from '@/api/services/recognition.js'
+import { getStorageSync } from '@/utils/storage.js'
 
 const router = useRouter()
 const inputText = ref('')
@@ -135,13 +132,6 @@ const getAIStatus = () => {
   return isAIOnline.value ? '在线' : '离线'
 }
 
-const showMenu = () => {
-  showActionSheet(['清空聊天记录', '导出聊天记录', '设置']).then(index => {
-    if (index === 0) clearChatHistory()
-    else if (index === 1) showToast('导出功能开发中', 'none')
-    else if (index === 2) showToast('设置功能开发中', 'none')
-  })
-}
 
 const sendMessage = async () => {
   if (!canSend.value) return
@@ -194,7 +184,7 @@ const scrollToBottom = () => {
 }
 
 const formatMessageContent = (content) => {
-  return content.replace(/\n/g, '<br/>')
+  return marked.parse(content, { breaks: true })
 }
 
 const formatTime = (timestamp) => {
@@ -208,38 +198,101 @@ const formatTime = (timestamp) => {
 }
 
 const sendToAI = async (message) => {
+  const aiMessage = { id: Date.now() + 1, type: 'ai', content: '', timestamp: new Date(), isTyping: true }
+  messageList.value.push(aiMessage)
+  isAITyping.value = true
+  await nextTick(); scrollToBottom()
+
+  // 构建多轮对话历史（用户 + AI 回复，最近 20 条）
+  const history = messageList.value
+    .filter(m => !m.isTyping)
+    .slice(-20)
+    .map(m => ({ role: m.type === 'ai' ? 'assistant' : 'user', content: m.content }))
+
+  const token = getStorageSync('access_token') || ''
+
   try {
-    const aiMessage = { id: Date.now() + 1, type: 'ai', content: '', timestamp: new Date(), isTyping: true }
-    messageList.value.push(aiMessage)
-    isAITyping.value = true
-    await nextTick(); scrollToBottom()
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    const response = generateAIResponse(message)
-    const idx = messageList.value.findIndex(m => m.id === aiMessage.id)
-    if (idx !== -1) {
-      messageList.value[idx].content = response
-      messageList.value[idx].isTyping = false
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ messages: history, stream: true }),
+    })
+
+    if (!resp.ok) {
+      // API 不可用 → 回退到本地 mock
+      const mock = generateMockResponse(message)
+      updateAiMessage(aiMessage.id, mock)
+      const idx = messageList.value.findIndex(m => m.id === aiMessage.id)
+      if (idx !== -1) messageList.value[idx].isTyping = false
       isAITyping.value = false
+      generateQuickReplies(mock)
+      return
     }
-    generateQuickReplies(response)
-    await nextTick(); scrollToBottom()
-  } catch (error) {
+
+    // 流式读取 SSE
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let content = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const text = decoder.decode(value, { stream: true })
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+          try {
+            const json = JSON.parse(line.slice(6))
+            const delta = json.choices?.[0]?.delta?.content || ''
+            content += delta
+            updateAiMessage(aiMessage.id, content)
+          } catch { /* skip parse errors */ }
+        }
+      }
+    }
+
+    if (!content) {
+      updateAiMessage(aiMessage.id, '抱歉，AI 没有返回内容，请稍后再试。')
+      const idx = messageList.value.findIndex(m => m.id === aiMessage.id)
+      if (idx !== -1) messageList.value[idx].isTyping = false
+      isAITyping.value = false
+    } else {
+      // 完成：取消 typing 状态
+      const idx = messageList.value.findIndex(m => m.id === aiMessage.id)
+      if (idx !== -1) messageList.value[idx].isTyping = false
+      isAITyping.value = false
+      generateQuickReplies(content)
+    }
+  } catch {
+    // 网络错误 → 回退 mock
+    const mock = generateMockResponse(message)
+    updateAiMessage(aiMessage.id, mock)
+    const idx = messageList.value.findIndex(m => m.id === aiMessage.id)
+    if (idx !== -1) messageList.value[idx].isTyping = false
     isAITyping.value = false
-    showToast('AI响应失败，请重试', 'error')
+    generateQuickReplies(mock)
   }
 }
 
-const generateAIResponse = (msg) => {
-  const responses = {
+function updateAiMessage(id, content) {
+  const idx = messageList.value.findIndex(m => m.id === id)
+  if (idx !== -1) {
+    messageList.value[idx].content = content
+    nextTick(() => scrollToBottom())
+  }
+}
+
+/** AI 不可用时的本地兜底回复 */
+function generateMockResponse(msg) {
+  const k = msg.slice(0, 10)
+  const map = {
     '鸟类识别': '我可以帮您识别鸟类！请描述一下鸟的特征，比如大小、颜色、叫声等，或者您可以上传照片让我来识别。',
-    '鸟类习性': '不同鸟类有着各自独特的习性。您想了解哪种鸟类的习性呢？比如觅食习惯、繁殖行为、迁徙路线等。',
-    '观鸟指南': '观鸟是一项很有趣的活动！建议选择清晨或傍晚时间，准备好双筒望远镜，选择公园、湿地等鸟类活动频繁的地方。保持安静，避免惊扰鸟类。',
-    '保护知识': '鸟类保护非常重要。我们可以通过保护栖息地、减少污染、不干扰繁殖等方式来保护鸟类。您想了解具体哪个方面的保护知识呢？'
+    '鸟类习性': '不同鸟类有着各自独特的习性。您想了解哪种鸟类的习性呢？',
+    '观鸟指南': '观鸟建议选择清晨或傍晚，准备望远镜，去公园或湿地，保持安静。',
+    '保护知识': '鸟类保护很重要。我们可以保护栖息地、减少污染、不干扰繁殖。',
   }
-  for (const [keyword, response] of Object.entries(responses)) {
-    if (msg.includes(keyword)) return response
-  }
-  return '这是一个很好的问题！作为鸟类专家，我很乐意为您解答。您能提供更多具体信息吗？这样我可以给出更准确的回答。'
+  for (const [kw, r] of Object.entries(map)) { if (msg.includes(kw)) return r }
+  return '这是一个很好的问题！作为鸟类专家，我很乐意为您解答。请提供更多具体信息，我会给出更准确的回答。'
 }
 
 const generateQuickReplies = (aiResponse) => {
@@ -276,17 +329,27 @@ const handleImageRecognition = async (imagePath, file) => {
   }
 }
 
-const clearChatHistory = async () => {
-  const confirmed = await showModal('确认清空', '确定要清空所有聊天记录吗？')
-  if (confirmed) {
-    messageList.value = []
-    showToast('已清空', 'success')
-  }
-}
 
-watch(messageList, () => { nextTick(() => scrollToBottom()) }, { deep: true })
 
-onMounted(() => { isAIOnline.value = true })
+// 自动保存聊天记录
+watch(messageList, () => {
+  nextTick(() => scrollToBottom())
+  const toSave = messageList.value.filter(m => !m.isTyping).slice(-50)
+  try { localStorage.setItem('chat_history', JSON.stringify(toSave)) } catch {}
+}, { deep: true })
+
+// 恢复聊天记录
+onMounted(() => {
+  isAIOnline.value = true
+  try {
+    const saved = localStorage.getItem('chat_history')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // 时间戳是字符串，需要转回 Date
+      messageList.value = parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) }))
+    }
+  } catch {}
+})
 </script>
 
 <style scoped>
@@ -303,7 +366,6 @@ onMounted(() => { isAIOnline.value = true })
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
 .ai-name { font-size: 14px; font-weight: 600; color: white; display: block; }
 .ai-status { font-size: 10px; color: rgba(255,255,255,0.8); display: block; }
-.menu-icon { font-size: 18px; color: white; }
 
 .message-list { flex: 1; padding: 12px 16px; overflow-y: auto; }
 .welcome-section { display: flex; justify-content: center; padding: 40px 0; }
@@ -327,6 +389,35 @@ onMounted(() => { isAIOnline.value = true })
 .ai-bubble { background: white; border: 1px solid rgba(156,39,176,0.1); border-bottom-left-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
 .user-bubble { background: linear-gradient(135deg, #9c27b0, #ab47bc); color: white; border-bottom-right-radius: 4px; }
 .message-text { font-size: 14px; line-height: 1.6; color: #333; }
+.message-text :deep(h1),
+.message-text :deep(h2),
+.message-text :deep(h3) { margin: 10px 0 6px; font-weight: 700; }
+.message-text :deep(h1) { font-size: 1.3em; }
+.message-text :deep(h2) { font-size: 1.15em; }
+.message-text :deep(h3) { font-size: 1.05em; }
+.message-text :deep(p) { margin: 0 0 8px; }
+.message-text :deep(p:last-child) { margin-bottom: 0; }
+.message-text :deep(ul),
+.message-text :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
+.message-text :deep(li) { margin-bottom: 2px; }
+.message-text :deep(code) {
+  background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px;
+  font-size: 0.9em; font-family: 'SF Mono', Consolas, monospace;
+}
+.message-text :deep(pre) {
+  background: #1e1e1e; color: #d4d4d4; padding: 12px 14px;
+  border-radius: 8px; overflow-x: auto; margin: 8px 0; font-size: 13px;
+}
+.message-text :deep(pre code) { background: none; padding: 0; color: inherit; }
+.message-text :deep(strong) { font-weight: 700; }
+.message-text :deep(blockquote) {
+  border-left: 3px solid var(--color-primary); padding-left: 12px;
+  margin: 8px 0; color: var(--color-text-secondary);
+}
+.message-text :deep(table) { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.message-text :deep(th),
+.message-text :deep(td) { border: 1px solid var(--color-border); padding: 6px 10px; text-align: left; }
+.message-text :deep(th) { background: var(--color-bg); font-weight: 600; }
 .user-bubble .message-text { color: white; }
 .message-time { font-size: 10px; color: #999; margin-left: 12px; }
 .user-message-wrapper .message-time { text-align: right; margin-left: 0; margin-right: 12px; display: block; }

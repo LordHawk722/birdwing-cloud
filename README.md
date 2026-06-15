@@ -7,12 +7,13 @@
 ```
 birdwing-cloud/
 ├── frontend/                        # Vue 3 Web 前端
+│   ├── public/                      # 静态资源（Banner 图片等）
 │   ├── src/
-│   │   ├── pages/                   # 10 个页面（含登录/注册）
-│   │   ├── components/              # 共享组件
+│   │   ├── pages/                   # 11 个页面
+│   │   ├── components/              # 7 个共享组件（含 CreatePostModal）
 │   │   ├── router/                  # 路由配置 + 认证守卫
 │   │   ├── stores/                  # 响应式状态管理（auth）
-│   │   ├── api/                     # API 服务层
+│   │   ├── api/                     # API 服务层（6 个模块）
 │   │   ├── config/                  # 配置文件
 │   │   ├── utils/                   # 工具函数
 │   │   └── styles/                  # 全局样式
@@ -58,11 +59,11 @@ birdwing-cloud/
 ### 前端
 
 - **Vue 3** (Composition API + `<script setup>`)
-- **Vue Router 4**（路由守卫 + 认证拦截）
-- **响应式 Auth Store**（基于 `reactive()`/`computed()`，零依赖）
-- **Vite 5**（开发代理 `/api` → 后端 `8000`）
-- **Axios**（拦截器自动附加 Token + 401 过期处理）
-- **SCSS**
+- **Vue Router 4**（路由守卫 + 认证拦截 + 动态路由 `/post/:id`）
+- **响应式 Auth Store**（基于 `reactive()`/`computed()`，零依赖，localStorage 持久化）
+- **Vite 5**（开发代理 `/api`、`/uploads` → 后端 `8000`）
+- **Axios**（拦截器自动附加 Token + 401 过期处理，loading 按需启用）
+- **SCSS**（CSS 变量设计系统，响应式布局）
 
 ### 后端
 
@@ -141,10 +142,11 @@ mysql -u root -p < sql/seed.sql
 | `/guide` | 引导 | 新手指南 | ❌ |
 | `/ai-chat` | AI 助理 | 鸟类知识问答 + 图片识别 | ❌ |
 | `/encyclopedia` | 图鉴 | 鸟类百科搜索 + 卡片翻阅 | ❌ |
+| `/post/:id` | 帖子详情 | 内容全文、评论、点赞 | ❌ |
 | `/login` | 登录 | 用户登录 | ❌ |
 | `/register` | 注册 | 用户注册 | ❌ |
 
-> 上传和个人中心页面需要登录；未登录时自动跳转到登录页，登录后返回原页面。
+> 上传和个人中心页面需要登录；未登录时自动跳转到登录页。首页和"我的"页面均可发起发布动态。
 
 ## 数据库设计
 

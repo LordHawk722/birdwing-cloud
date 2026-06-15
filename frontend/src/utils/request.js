@@ -82,6 +82,14 @@ http.interceptors.response.use(
 
       // 处理401未授权
       if (status === STATUS_CODES.UNAUTHORIZED) {
+        const url = error.config?.url || ''
+        // 登录/注册接口的 401 是"用户名或密码错误"，不是 token 过期
+        if (url.includes('/users/login') || url.includes('/users/register')) {
+          return Promise.reject({
+            statusCode: status,
+            message: error.response?.data?.detail || '用户名或密码错误',
+          })
+        }
         removeStorageSync(STORAGE_KEYS.TOKEN)
         removeStorageSync(STORAGE_KEYS.REFRESH_TOKEN)
         removeStorageSync(STORAGE_KEYS.USER_INFO)

@@ -57,6 +57,12 @@ const routes = [
     meta: { title: 'AI助理' }
   },
   {
+    path: '/post/:id',
+    name: 'PostDetail',
+    component: () => import('@/pages/PostDetailPage/PostDetailPage.vue'),
+    meta: { title: '帖子详情' }
+  },
+  {
     path: '/encyclopedia',
     name: 'BirdEncyclopedia',
     component: () => import('@/pages/BirdEncyclopedia/BirdEncyclopedia.vue'),

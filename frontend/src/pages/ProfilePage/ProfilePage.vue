@@ -18,12 +18,16 @@
           <div class="banner-stats">
             <div><strong>{{ posts.length }}</strong> 发布</div>
             <div class="stat-divider"></div>
-            <div><strong>{{ userInfo.like_count || 0 }}</strong> 获赞</div>
+            <div><strong>{{ totalLikes }}</strong> 获赞</div>
             <div class="stat-divider"></div>
             <div><strong>{{ records.length }}</strong> 识别</div>
           </div>
         </div>
-        <button class="banner-edit-btn" @click="handleEditProfile">✏️ 编辑资料</button>
+        <div class="banner-actions">
+          <button class="banner-edit-btn" @click="handleEditProfile">✏️ 编辑资料</button>
+          <button class="banner-post-btn" @click="openCreatePost">📝 发布动态</button>
+          <button class="banner-logout-btn" @click="handleLogout">退出登录</button>
+        </div>
       </div>
     </div>
 
@@ -58,7 +62,7 @@
               <h3>{{ emptyText }}</h3>
             </div>
             <div v-else class="content-grid">
-              <div v-for="item in currentContent" :key="item.id" class="grid-cell fade-in">
+              <div v-for="item in currentContent" :key="item.id" class="grid-cell fade-in" @click="onPostClick(item)">
                 <HomePoster :poster-data="item" />
               </div>
             </div>
@@ -66,6 +70,8 @@
         </template>
       </div>
     </div>
+
+    <CreatePostModal v-model:visible="showCreatePost" @created="loadAllData" />
 
     <!-- 编辑资料弹窗 -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="cancelEditProfile">
@@ -104,7 +110,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import HomePoster from '@/components/HomePoster.vue'
+import CreatePostModal from '@/components/CreatePostModal.vue'
 import UserService from '@/api/services/user.js'
 import PostService from '@/api/services/post.js'
 import RecognitionService from '@/api/services/recognition.js'
@@ -114,31 +122,48 @@ import { getOSSUrl } from '@/config/oss.js'
 import { showToast, showEditableModal } from '@/utils/toast.js'
 import { chooseImages } from '@/utils/helpers.js'
 
+const router = useRouter()
 const auth = useAuthStore()
+
+function handleLogout() {
+  auth.clearAuth()
+  router.push('/')
+}
+
+// ---- 发布动态 ----
+const showCreatePost = ref(false)
+function openCreatePost() {
+  showCreatePost.value = true
+}
+
+// ---- 点击帖子 ----
+function onPostClick(item) {
+  if (item.id && activeTab.value === 'posts') {
+    router.push(`/post/${item.id}`)
+  }
+}
 
 // ---- 状态 ----
 const isLoading = ref(true)
 const activeTab = ref('posts')
 const userInfo = ref({ avatar: '', nickname: '用户', bio: '', level: 1, like_count: 0 })
 const posts = ref([])
-const likes = ref([])
 const records = ref([])
+
+const totalLikes = computed(() => posts.value.reduce((sum, p) => sum + (p.likes || 0), 0))
 
 const tabs = computed(() => [
   { key: 'posts', label: '发布', icon: '📷', count: posts.value.length || 0 },
-  { key: 'likes', label: '点赞', icon: '❤️', count: likes.value.length || 0 },
   { key: 'records', label: '识别', icon: '🔍', count: records.value.length || 0 },
 ])
 
 const currentContent = computed(() => {
   if (activeTab.value === 'posts') return posts.value
-  if (activeTab.value === 'likes') return likes.value
   return records.value
 })
 
 const emptyText = computed(() => ({
   posts: '还没有发布过内容',
-  likes: '还没有点赞过内容',
   records: '还没有识别记录',
 }[activeTab.value] || '暂无内容'))
 
@@ -176,8 +201,8 @@ async function loadUserPosts() {
       imageUrl: p.images?.length ? p.images[0] : '',
       imageHeight: 200 + Math.floor(Math.random() * 80),
       description: p.title,
-      views: p.like_count || 0,
-      likes: p.comment_count || 0,
+      likes: p.like_count || 0,
+      comments: p.comment_count || 0,
     }))
   } catch {
     posts.value = []
@@ -361,15 +386,33 @@ onMounted(() => {
 .banner-stats strong { font-size: 16px; margin-right: 3px; }
 .stat-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.25); }
 
+.banner-actions {
+  display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+}
 .banner-edit-btn {
   padding: 8px 18px; border-radius: 20px;
   background: rgba(255,255,255,0.15); color: #fff;
   border: 1px solid rgba(255,255,255,0.25);
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.2s;
-  flex-shrink: 0;
 }
 .banner-edit-btn:hover { background: rgba(255,255,255,0.25); }
+.banner-post-btn {
+  padding: 8px 18px; border-radius: 20px;
+  background: rgba(255,255,255,0.25); color: #fff;
+  border: 1px solid rgba(255,255,255,0.35);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s;
+}
+.banner-post-btn:hover { background: rgba(255,255,255,0.35); }
+.banner-logout-btn {
+  padding: 6px 18px; border-radius: 20px;
+  background: transparent; color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  font-size: 12px; cursor: pointer;
+  transition: all 0.2s;
+}
+.banner-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
 
 /* ========== 内容区 ========== */
 .content-section {
@@ -424,7 +467,7 @@ onMounted(() => {
   .banner-inner { flex-direction: column; text-align: center; gap: 16px; padding: 0 20px; }
   .banner-stats { justify-content: center; }
   .banner-bio { margin-left: auto; margin-right: auto; }
-  .banner-edit-btn { position: static; }
+  .banner-actions { flex-direction: row; }
   .section-inner { padding: 20px 16px 40px; }
   .content-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import init_db
-from app.routers import users, posts, birds, upload, recognition
+from app.routers import users, posts, birds, upload, recognition, chat
 
 
 @asynccontextmanager
@@ -45,6 +45,7 @@ app.include_router(posts.router)
 app.include_router(birds.router)
 app.include_router(upload.router)
 app.include_router(recognition.router)
+app.include_router(chat.router)
 
 # 静态文件（上传的图片）
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
