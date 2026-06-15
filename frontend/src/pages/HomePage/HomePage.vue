@@ -124,11 +124,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import EnhancedPoster from '@/components/EnhancedPoster.vue'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast } from '@/utils/toast.js'
 import BirdApiService from '@/api/services/bird.js'
 import PostService from '@/api/services/post.js'
+
+const router = useRouter()
+const POSTS_CACHE_KEY = 'homepage_posts_cache'
 
 const searchText = ref('')
 const isLoading = ref(true)
@@ -172,8 +176,9 @@ function mapPostItem(p) {
     imageUrl: p.images?.length ? p.images[0] : '',
     imageHeight: 200 + Math.floor(Math.random() * 120),
     description: p.title,
-    views: p.like_count || 0,
-    likes: p.comment_count || 0,
+    likeCount: p.like_count || 0,
+    commentCount: p.comment_count || 0,
+    isLiked: p.is_liked || false,
     author: { name: p.author_name || '用户', avatar: p.author_avatar || '' },
     location: p.location || '',
     publishTime: p.created_at || '',
@@ -181,14 +186,29 @@ function mapPostItem(p) {
 }
 
 async function loadPosts() {
+  // 先从缓存加载
+  try {
+    const cached = sessionStorage.getItem(POSTS_CACHE_KEY)
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      allPosters.value = parsed
+      posterList.value = [...allPosters.value]
+      distribute()
+      isLoading.value = false
+    }
+  } catch { /* ignore cache errors */ }
+
   try {
     const res = await PostService.getPostList(1, 20)
     const items = res.data?.data?.items || []
-    allPosters.value = items.map(mapPostItem)
+    const mapped = items.map(mapPostItem)
+    // 更新缓存
+    sessionStorage.setItem(POSTS_CACHE_KEY, JSON.stringify(mapped))
+    allPosters.value = mapped
     posterList.value = [...allPosters.value]
     distribute()
   } catch {
-    // 静默失败，显示空状态
+    // 静默失败，显示缓存或空状态
   } finally {
     isLoading.value = false
   }
@@ -223,14 +243,22 @@ const filterPosters = (k) => {
   distribute()
 }
 const resetPosters = () => { posterList.value = [...allPosters.value]; distribute() }
-const onLike = (p) => {
-  const x = posterList.value.find(y => y.id === p.id)
-  if (x) { x.likes += 1; distribute() }
-  PostService.toggleLike(p.id).catch(() => {})
+const onLike = async (p) => {
+  try {
+    const res = await PostService.toggleLike(p.id)
+    const d = res.data?.data
+    const x = posterList.value.find(y => y.id === p.id)
+    if (x && d) {
+      x.isLiked = d.is_liked
+      x.likeCount = d.like_count
+      distribute()
+    }
+  } catch (err) {
+    if (err?.statusCode === 401) showToast('请先登录', 'none')
+  }
 }
 const onView = (p) => {
-  const x = posterList.value.find(y => y.id === p.id)
-  if (x) x.views += 1
+  router.push('/post/' + p.id)
 }
 const distribute = () => {
   leftColumn.value = []; rightColumn.value = []

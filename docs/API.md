@@ -51,6 +51,8 @@ HTTP 状态码说明：
 | 422 | 请求数据校验失败 |
 | 500 | 服务器内部错误 |
 
+> 本文档最后更新于 2026-06-16
+
 ---
 
 ## 1. 用户模块 `/api/users`
@@ -262,6 +264,7 @@ GET /api/posts?page=1&page_size=10
         "location": "深圳莲花山公园",
         "like_count": 5,
         "comment_count": 3,
+        "is_liked": true,
         "author_id": 1,
         "author_name": "birdfan",
         "author_avatar": "",
@@ -278,11 +281,41 @@ GET /api/posts?page=1&page_size=10
 }
 ```
 
-> 列表项中的 content 截取前 200 字符作为摘要。
+> 列表项中的 content 截取前 200 字符作为摘要。`is_liked` 仅在登录用户访问时有效，通过批量查询 `post_likes` 表填充，未登录时默认为 `false`。
 
 ---
 
-### 2.3 帖子详情
+### 2.3 位置统计
+
+```
+GET /api/posts/locations
+```
+
+**无需登录**
+
+**说明**：查询所有帖子中包含的位置名称，按位置分组统计帖子数量，用于地图页面显示。
+
+**响应**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    { "name": "深圳莲花山公园", "count": 5 },
+    { "name": "上海市崇明东滩公园", "count": 3 }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | string | 位置名称 |
+| count | int | 该位置的帖子数量 |
+
+---
+
+### 2.4 帖子详情
 
 ```
 GET /api/posts/{post_id}
@@ -327,7 +360,7 @@ GET /api/posts/{post_id}
 
 ---
 
-### 2.4 更新帖子
+### 2.5 更新帖子
 
 ```
 PUT /api/posts/{post_id}
@@ -352,7 +385,7 @@ PUT /api/posts/{post_id}
 
 ---
 
-### 2.5 删除帖子
+### 2.6 删除帖子
 
 ```
 DELETE /api/posts/{post_id}
@@ -360,13 +393,25 @@ DELETE /api/posts/{post_id}
 
 **需登录（仅本人）**
 
+**说明**：删除帖子时会自动级联删除该帖子下的所有评论和点赞记录。
+
+**响应**：
+
+```json
+{
+  "code": 200,
+  "message": "删除成功",
+  "data": null
+}
+```
+
 **错误**：
 - 404 — 帖子不存在
 - 403 — 无权删除（非本人）
 
 ---
 
-### 2.6 点赞/取消点赞
+### 2.7 点赞/取消点赞
 
 ```
 POST /api/posts/{post_id}/like
@@ -393,7 +438,7 @@ POST /api/posts/{post_id}/like
 
 ---
 
-### 2.7 评论列表
+### 2.8 评论列表
 
 ```
 GET /api/posts/{post_id}/comments?page=1&page_size=20
@@ -438,7 +483,7 @@ GET /api/posts/{post_id}/comments?page=1&page_size=20
 
 ---
 
-### 2.8 发表评论
+### 2.9 发表评论
 
 ```
 POST /api/posts/{post_id}/comments

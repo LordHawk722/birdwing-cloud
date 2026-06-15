@@ -21,10 +21,9 @@
       <button v-if="longText" class="expand-btn" @click.stop="expanded = !expanded">{{ expanded ? '收起' : '展开全文' }}</button>
 
       <div class="card-footer">
-        <span class="stat">👁 {{ fmt(posterData.views) }}</span>
         <div class="card-actions">
           <button class="action like" :class="{ liked }" @click.stop="handleLike">
-            {{ liked ? '❤️' : '🤍' }} {{ fmt(posterData.likes) }}
+            {{ liked ? '❤️' : '🤍' }} {{ fmt(posterData.likeCount) }}
           </button>
           <button class="action share" @click.stop="handleShare">↗</button>
         </div>
@@ -46,7 +45,7 @@ const emit = defineEmits(['like', 'view', 'share'])
 
 const loaded = ref(false)
 const expanded = ref(false)
-const liked = ref(false)
+const liked = computed(() => props.posterData.isLiked || false)
 
 const imgHeight = computed(() => props.posterData.imageHeight || 200)
 const longText = computed(() => props.posterData.description?.length > 60)
@@ -65,8 +64,6 @@ const authorAvatarUrl = computed(() => {
 })
 
 const handleLike = () => {
-  if (liked.value) return
-  liked.value = true
   emit('like', props.posterData)
   vibrate('medium')
 }

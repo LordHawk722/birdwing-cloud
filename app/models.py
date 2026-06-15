@@ -42,8 +42,8 @@ class Post(Base):
 
     # 关联
     author = relationship("User", back_populates="posts")
-    likes = relationship("PostLike", back_populates="post")
-    comments = relationship("Comment", back_populates="post")
+    likes = relationship("PostLike", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
 
 
 class PostLike(Base):
