@@ -72,7 +72,8 @@
         <div v-else-if="comments.length === 0" class="no-comments">暂无评论，来说两句吧</div>
         <div v-else class="comment-list">
           <div v-for="c in comments" :key="c.id" class="comment-item">
-            <span class="comment-avatar">{{ c.user?.nickname?.[0] || '👤' }}</span>
+            <img v-if="c.user?.avatar" :src="avatarUrl(c.user.avatar)" class="comment-avatar-img" @error="e => e.target.style.display='none'" />
+            <span v-else class="comment-avatar">{{ c.user?.nickname?.[0] || '👤' }}</span>
             <div class="comment-body">
               <div class="comment-header">
                 <span class="comment-author">{{ c.user?.nickname || c.user?.username || '用户' }}</span>
@@ -121,6 +122,12 @@ function imgUrl(url) {
   if (imgError.value) return ''
   if (url.startsWith('http') || url.startsWith('blob:')) return url
   return getOSSUrl(url, 'large')
+}
+
+function avatarUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('blob:')) return url
+  return getOSSUrl(url, 'avatar')
 }
 
 function fmtTime(t) {
@@ -258,6 +265,10 @@ onMounted(() => {
   background: var(--color-primary-bg); color: var(--color-primary);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700;
+}
+.comment-avatar-img {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover;
 }
 .comment-body { flex: 1; }
 .comment-header { display: flex; justify-content: space-between; margin-bottom: 4px; }

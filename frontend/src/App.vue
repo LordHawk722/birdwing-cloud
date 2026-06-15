@@ -29,7 +29,7 @@
         <div v-if="auth.isAuthenticated.value" class="user-mini" @click="$router.push('/profile')">
           <img
             v-if="auth.user.value?.avatar"
-            :src="auth.user.value.avatar"
+            :src="sidebarAvatar"
             class="user-avatar-img"
             @error="e => e.target.style.display='none'"
           />
@@ -70,13 +70,21 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
+import { getOSSUrl } from '@/config/oss.js'
 import eventBus from '@/utils/eventBus.js'
 
 const route = useRoute()
 const auth = useAuthStore()
+
+const sidebarAvatar = computed(() => {
+  const a = auth.user.value?.avatar
+  if (!a) return ''
+  if (a.startsWith('http') || a.startsWith('blob:')) return a
+  return getOSSUrl(a, 'avatar')
+})
 
 function handleTokenExpired() {
   auth.clearAuth()
