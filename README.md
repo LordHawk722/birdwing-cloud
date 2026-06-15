@@ -8,9 +8,10 @@
 birdwing-cloud/
 ├── frontend/                        # Vue 3 Web 前端
 │   ├── src/
-│   │   ├── pages/                   # 8 个页面
+│   │   ├── pages/                   # 10 个页面（含登录/注册）
 │   │   ├── components/              # 共享组件
-│   │   ├── router/                  # 路由配置
+│   │   ├── router/                  # 路由配置 + 认证守卫
+│   │   ├── stores/                  # 响应式状态管理（auth）
 │   │   ├── api/                     # API 服务层
 │   │   ├── config/                  # 配置文件
 │   │   ├── utils/                   # 工具函数
@@ -56,10 +57,11 @@ birdwing-cloud/
 
 ### 前端
 
-- **Vue 3** (Composition API)
-- **Vue Router 4**
-- **Vite 5**
-- **Axios**
+- **Vue 3** (Composition API + `<script setup>`)
+- **Vue Router 4**（路由守卫 + 认证拦截）
+- **响应式 Auth Store**（基于 `reactive()`/`computed()`，零依赖）
+- **Vite 5**（开发代理 `/api` → 后端 `8000`）
+- **Axios**（拦截器自动附加 Token + 401 过期处理）
 - **SCSS**
 
 ### 后端
@@ -129,16 +131,20 @@ mysql -u root -p < sql/seed.sql
 
 ## 前端页面路由
 
-| 路径 | 页面 | 说明 |
-|------|------|------|
-| `/` | 首页 | Banner 轮播 + 搜索 + 瀑布流 |
-| `/upload` | 上传 | 图片上传与分析 |
-| `/map` | 地图 | 鸟类观测点地图 |
-| `/profile` | 我的 | 个人中心 |
-| `/ranking` | 排行榜 | 热门鸟类排行 |
-| `/guide` | 引导 | 新手指南 |
-| `/ai-chat` | AI 助理 | 鸟类知识问答 |
-| `/encyclopedia` | 图鉴 | 鸟类卡片翻阅 |
+| 路径 | 页面 | 说明 | 需登录 |
+|------|------|------|--------|
+| `/` | 首页 | Banner 轮播 + 搜索 + 社区瀑布流 | ❌ |
+| `/upload` | 上传 | 图片上传与 AI 识别 | ✅ |
+| `/map` | 地图 | 鸟类观测点地图 | ❌ |
+| `/profile` | 我的 | 个人中心（资料、帖子、识别记录） | ✅ |
+| `/ranking` | 排行榜 | 热门鸟类搜索排行 | ❌ |
+| `/guide` | 引导 | 新手指南 | ❌ |
+| `/ai-chat` | AI 助理 | 鸟类知识问答 + 图片识别 | ❌ |
+| `/encyclopedia` | 图鉴 | 鸟类百科搜索 + 卡片翻阅 | ❌ |
+| `/login` | 登录 | 用户登录 | ❌ |
+| `/register` | 注册 | 用户注册 | ❌ |
+
+> 上传和个人中心页面需要登录；未登录时自动跳转到登录页，登录后返回原页面。
 
 ## 数据库设计
 

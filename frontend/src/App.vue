@@ -25,9 +25,21 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="user-mini" @click="$router.push('/profile')">
-          <span class="user-avatar">👤</span>
-          <span class="user-name">鸟类爱好者</span>
+        <!-- 已登录：显示用户信息 -->
+        <div v-if="auth.isAuthenticated.value" class="user-mini" @click="$router.push('/profile')">
+          <img
+            v-if="auth.user.value?.avatar"
+            :src="auth.user.value.avatar"
+            class="user-avatar-img"
+            @error="e => e.target.style.display='none'"
+          />
+          <span v-else class="user-avatar">👤</span>
+          <span class="user-name">{{ auth.user.value?.nickname || '用户' }}</span>
+        </div>
+        <!-- 未登录：显示登录/注册按钮 -->
+        <div v-else class="auth-buttons">
+          <button class="sidebar-btn sidebar-btn-primary" @click="$router.push('/login')">登录</button>
+          <button class="sidebar-btn sidebar-btn-secondary" @click="$router.push('/register')">注册</button>
         </div>
       </div>
     </aside>
@@ -58,9 +70,25 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.js'
+import eventBus from '@/utils/eventBus.js'
 
 const route = useRoute()
+const auth = useAuthStore()
+
+function handleTokenExpired() {
+  auth.clearAuth()
+}
+
+onMounted(() => {
+  eventBus.on('tokenExpired', handleTokenExpired)
+})
+
+onUnmounted(() => {
+  eventBus.off('tokenExpired', handleTokenExpired)
+})
 
 const navItems = [
   { path: '/', label: '首页', icon: '🏠' },
@@ -192,6 +220,29 @@ const isActive = (path) => {
   font-size: 16px;
 }
 .user-name { font-size: 13px; color: var(--color-text); font-weight: 500; }
+.user-avatar-img {
+  width: 32px; height: 32px;
+  border-radius: 50%; object-fit: cover;
+}
+
+/* 未登录按钮 */
+.auth-buttons {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sidebar-btn {
+  width: 100%; padding: 8px 0;
+  border-radius: var(--radius-sm); border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.sidebar-btn-primary {
+  background: var(--color-primary); color: #fff;
+}
+.sidebar-btn-primary:hover { background: var(--color-primary-dark); }
+.sidebar-btn-secondary {
+  background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border);
+}
+.sidebar-btn-secondary:hover { background: var(--color-border); }
 
 /* ========== 主内容区 ========== */
 .main-content {

@@ -1,29 +1,33 @@
+/**
+ * 用户服务 — 与后端 /api/users/* 路由对应
+ */
 import { request } from '@/utils/request.js'
-import { introMock } from '../mocks/editIntroMock.js'
+import { API_ENDPOINTS } from '@/config/api.js'
 
 export class UserService {
-  async getIntro() {
-    // 开发环境使用mock数据
-    if (import.meta.env.DEV) {
-      return introMock.data.intro
-    }
-    const response = await request.get('/api/user/intro')
-    return response.data?.intro || ''
+  /** 注册 → POST /api/users/register */
+  async register(username, password) {
+    return request.post(API_ENDPOINTS.USER.REGISTER, { username, password })
   }
 
-  async updateIntro(intro) {
-    const response = await request.put('/api/user/intro', { intro })
-    return response.data
+  /** 登录 → POST /api/users/login */
+  async login(username, password) {
+    return request.post(API_ENDPOINTS.USER.LOGIN, { username, password })
   }
 
-  async getUserProfile() {
-    const response = await request.get('/api/user/profile')
-    return response.data
+  /** 获取当前用户信息 → GET /api/users/me */
+  async getCurrentUser() {
+    return request.get(API_ENDPOINTS.USER.ME)
   }
 
-  async updateUserProfile(profile) {
-    const response = await request.put('/api/user/profile', profile)
-    return response.data
+  /** 更新个人信息 → PUT /api/users/me */
+  async updateProfile(data) {
+    return request.put(API_ENDPOINTS.USER.ME, data)
+  }
+
+  /** 获取指定用户信息 → GET /api/users/{id} */
+  async getUserById(userId) {
+    return request.get(API_ENDPOINTS.USER.DETAIL.replace('{id}', userId))
   }
 }
 

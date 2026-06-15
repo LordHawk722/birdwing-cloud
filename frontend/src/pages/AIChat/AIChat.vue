@@ -109,6 +109,7 @@ import { useRouter } from 'vue-router'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast, showActionSheet, showModal } from '@/utils/toast.js'
 import { chooseImages, vibrate } from '@/utils/helpers.js'
+import RecognitionService from '@/api/services/recognition.js'
 
 const router = useRouter()
 const inputText = ref('')
@@ -166,8 +167,8 @@ const sendQuickReply = (reply) => {
 const selectImage = async () => {
   try {
     const result = await chooseImages({ count: 1 })
-    if (result.tempFilePaths.length > 0) {
-      handleImageRecognition(result.tempFilePaths[0])
+    if (result.tempFilePaths.length > 0 && result.files.length > 0) {
+      handleImageRecognition(result.tempFilePaths[0], result.files[0])
     }
   } catch (error) {
     showToast('选择图片失败', 'error')
@@ -253,15 +254,25 @@ const generateQuickReplies = (aiResponse) => {
   setTimeout(() => { quickReplies.value = [] }, 5000)
 }
 
-const handleImageRecognition = async (imagePath) => {
+const handleImageRecognition = async (imagePath, file) => {
   try {
     showToast('识别中...', 'loading')
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    const result = '根据图片分析，这可能是一只麻雀。麻雀是常见的小型鸟类，体长约14-15厘米...'
-    messageList.value.push({ id: Date.now(), type: 'ai', content: `图片识别结果：<br/><br/>${result}`, timestamp: new Date(), isTyping: false })
+    const res = await RecognitionService.analyzeWithImage(file)
+    const data = res.data?.data
+    if (data?.results?.length) {
+      const topResult = data.results[0]
+      const resultLines = data.results.map((r, i) =>
+        `${i + 1}. ${r.name}（置信度 ${Math.round(r.confidence * 100)}%）`
+      ).join('<br/>')
+      const result = `根据图片分析，最可能是 <b>${topResult.name}</b>，置信度 ${Math.round(topResult.confidence * 100)}%。<br/><br/>完整识别结果：<br/>${resultLines}`
+      messageList.value.push({ id: Date.now(), type: 'ai', content: `图片识别结果：<br/><br/>${result}`, timestamp: new Date(), isTyping: false })
+    } else {
+      messageList.value.push({ id: Date.now(), type: 'ai', content: '未能识别出图片中的鸟类，请尝试更清晰的照片。', timestamp: new Date(), isTyping: false })
+    }
     await nextTick(); scrollToBottom()
   } catch (error) {
-    showToast('识别失败，请重试', 'error')
+    const msg = error?.statusCode === 401 ? '请先登录后再使用识别功能' : '识别失败，请重试'
+    showToast(msg, 'error')
   }
 }
 

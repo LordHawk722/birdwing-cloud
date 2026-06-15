@@ -63,7 +63,7 @@
 
       <!-- 右侧：信息面板（彩色背景卡片） -->
       <aside class="side-section">
-        <!-- 快捷操作：各自独立背景色 -->
+        <!-- 快捷操作 -->
         <div class="quick-group">
           <router-link to="/upload" class="quick-item q-upload">
             <span class="q-icon">📸</span>
@@ -97,11 +97,12 @@
             <h4>🔥 本周热门鸟类</h4>
             <router-link to="/ranking" class="panel-link">完整排行 →</router-link>
           </div>
-          <div class="hot-rows">
+          <div v-if="rankLoading" class="panel-loading">加载中...</div>
+          <div v-else class="hot-rows">
             <div v-for="(bird, i) in hotBirds" :key="bird.id" class="hot-row">
               <span class="hot-idx" :class="{ podium: i < 3 }">{{ i + 1 }}</span>
               <span class="hot-name">{{ bird.name }}</span>
-              <span class="hot-val">{{ bird.count }}</span>
+              <span class="hot-val">{{ fmtNum(bird.search_count) }}</span>
             </div>
           </div>
         </div>
@@ -126,25 +127,23 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import EnhancedPoster from '@/components/EnhancedPoster.vue'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast } from '@/utils/toast.js'
+import BirdApiService from '@/api/services/bird.js'
+import PostService from '@/api/services/post.js'
 
 const searchText = ref('')
 const isLoading = ref(true)
+const rankLoading = ref(true)
 const posterList = ref([])
+const allPosters = ref([])
 const leftColumn = ref([])
 const rightColumn = ref([])
 const currentBanner = ref(0)
 const tipIndex = ref(0)
+const hotBirds = ref([])
 let swiperTimer = null
 let tipTimer = null
 let searchTimer = null
 
-const hotBirds = [
-  { id: 1, name: '东方白鹳', count: '15万' },
-  { id: 2, name: '朱鹮', count: '12万' },
-  { id: 3, name: '丹顶鹤', count: '10万' },
-  { id: 4, name: '黄鹂', count: '8万' },
-  { id: 5, name: '金丝雀', count: '7.5万' },
-]
 const tips = [
   '清晨 5-8 点是观鸟的黄金时段，鸟儿们最活跃！',
   '穿灰/绿/棕色衣服更容易接近鸟类，荧光色是大忌！',
@@ -160,14 +159,52 @@ const bannerList = [
   { imageUrl: 'static/banner/peacock-banner.jpg', title: '绚烂羽翼', subtitle: '感受大自然的色彩魅力' },
   { imageUrl: 'static/banner/hummingbird-banner.jpg', title: '精灵悬停', subtitle: '捕捉蜂鸟的瞬间之美' },
 ]
-const mockData = [
-  { id: 1, imageUrl: 'static/posts/bird1.jpg', imageHeight: 200, description: '今天在公园拍到的小鸟，真的太可爱了！', views: 1223, likes: 12, author: { name: '鸟类爱好者', avatar: 'static/avatars/user1.png' }, location: '北京·朝阳公园', publishTime: '2小时前' },
-  { id: 2, imageUrl: 'static/posts/bird2.jpg', imageHeight: 280, description: '清晨6点，记录到了珍贵的候鸟迁徙场景', views: 25678, likes: 1892, author: { name: '自然摄影师', avatar: 'static/avatars/user2.png' }, location: '上海·世纪公园', publishTime: '5小时前' },
-  { id: 3, imageUrl: 'static/posts/bird3.jpg', imageHeight: 220, description: '蜂鸟悬停采蜜的瞬间，大自然的精灵', views: 5432, likes: 234, author: { name: '野生动物保护者', avatar: 'static/avatars/user3.png' }, location: '云南·西双版纳', publishTime: '1天前' },
-  { id: 4, imageUrl: 'static/posts/bird4.jpg', imageHeight: 300, description: '金刚鹦鹉的绚烂色彩，热带雨林的瑰宝', views: 8765, likes: 456, author: { name: '生态研究员', avatar: 'static/avatars/user4.jpg' }, location: '海南·亚龙湾', publishTime: '2天前' },
-  { id: 5, imageUrl: 'static/posts/bird1.jpg', imageHeight: 240, description: '白头鹎在枝头歌唱，春天的气息扑面而来', views: 3200, likes: 167, author: { name: '鸟类观察者', avatar: 'static/avatars/user1.png' }, location: '杭州·西湖', publishTime: '3小时前' },
-  { id: 6, imageUrl: 'static/posts/bird3.jpg', imageHeight: 260, description: '翠鸟捕鱼的精彩瞬间，大自然的完美猎手', views: 4100, likes: 289, author: { name: '生态摄影', avatar: 'static/avatars/user3.png' }, location: '南京·玄武湖', publishTime: '1天前' },
-]
+
+function fmtNum(n) {
+  if (!n) return '0'
+  return n >= 10000 ? (n / 10000).toFixed(1) + '万' : n.toLocaleString()
+}
+
+/** 将后端帖子数据转为前端组件期望格式 */
+function mapPostItem(p) {
+  return {
+    id: p.id,
+    imageUrl: p.images?.length ? p.images[0] : '',
+    imageHeight: 200 + Math.floor(Math.random() * 120),
+    description: p.title,
+    views: p.like_count || 0,
+    likes: p.comment_count || 0,
+    author: { name: p.author_name || '用户', avatar: p.author_avatar || '' },
+    location: p.location || '',
+    publishTime: p.created_at || '',
+  }
+}
+
+async function loadPosts() {
+  try {
+    const res = await PostService.getPostList(1, 20)
+    const items = res.data?.data?.items || []
+    allPosters.value = items.map(mapPostItem)
+    posterList.value = [...allPosters.value]
+    distribute()
+  } catch {
+    // 静默失败，显示空状态
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function loadRankings() {
+  rankLoading.value = true
+  try {
+    const res = await BirdApiService.getRankings(5)
+    hotBirds.value = res.data?.data || []
+  } catch {
+    // 静默失败
+  } finally {
+    rankLoading.value = false
+  }
+}
 
 const startSwiper = () => { swiperTimer = setInterval(() => { currentBanner.value = (currentBanner.value + 1) % bannerList.length }, 5000) }
 const goToSlide = (i) => { currentBanner.value = i; clearInterval(swiperTimer); startSwiper() }
@@ -177,20 +214,34 @@ const onSearchInput = () => {
   searchTimer = setTimeout(() => searchText.value.trim() ? filterPosters(searchText.value) : resetPosters(), 300)
 }
 const handleSearch = () => { if (searchText.value.trim()) filterPosters(searchText.value) }
-const filterPosters = (k) => { posterList.value = mockData.filter(p => p.description.includes(k) || p.location.includes(k)); distribute() }
-const resetPosters = () => { posterList.value = [...mockData]; distribute() }
-const onLike = (p) => { const x = posterList.value.find(y => y.id === p.id); if (x) { x.likes += 1; distribute(); showToast('点赞成功', 'success') } }
-const onView = (p) => { const x = posterList.value.find(y => y.id === p.id); if (x) x.views += 1 }
+const filterPosters = (k) => {
+  const kw = k.toLowerCase()
+  posterList.value = allPosters.value.filter(p =>
+    p.description?.toLowerCase().includes(kw) ||
+    p.location?.toLowerCase().includes(kw)
+  )
+  distribute()
+}
+const resetPosters = () => { posterList.value = [...allPosters.value]; distribute() }
+const onLike = (p) => {
+  const x = posterList.value.find(y => y.id === p.id)
+  if (x) { x.likes += 1; distribute() }
+  PostService.toggleLike(p.id).catch(() => {})
+}
+const onView = (p) => {
+  const x = posterList.value.find(y => y.id === p.id)
+  if (x) x.views += 1
+}
 const distribute = () => {
   leftColumn.value = []; rightColumn.value = []
   let lh = 0, rh = 0
-  posterList.value.forEach(p => { const h = p.imageHeight + 130; if (lh <= rh) { leftColumn.value.push(p); lh += h } else { rightColumn.value.push(p); rh += h } })
+  posterList.value.forEach(p => { const h = (p.imageHeight || 200) + 130; if (lh <= rh) { leftColumn.value.push(p); lh += h } else { rightColumn.value.push(p); rh += h } })
 }
 
 onMounted(async () => {
-  await new Promise(r => setTimeout(r, 500))
-  posterList.value = mockData.map(item => ({ ...item, imageUrl: getOSSUrl(item.imageUrl, 'post-thumb'), author: { ...item.author, avatar: getOSSUrl(item.author.avatar, 'avatar') } }))
-  distribute(); isLoading.value = false; startSwiper()
+  // 并行加载帖子和排行
+  await Promise.all([loadPosts(), loadRankings()])
+  startSwiper()
   tipTimer = setInterval(() => { tipIndex.value = (tipIndex.value + 1) % tips.length }, 8000)
 })
 onUnmounted(() => { clearInterval(swiperTimer); clearInterval(tipTimer) })
@@ -298,6 +349,7 @@ onUnmounted(() => { clearInterval(swiperTimer); clearInterval(tipTimer) })
 .panel-head h4 { font-size: 14px; font-weight: 700; color: #92400e; }
 .panel-link { font-size: 11px; color: #b45309; font-weight: 600; text-decoration: none; }
 .panel-link:hover { text-decoration: underline; }
+.panel-loading { text-align: center; font-size: 13px; color: #78716c; padding: 12px 0; }
 
 .hot-rows { display: flex; flex-direction: column; gap: 2px; }
 .hot-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; transition: background 0.15s; }

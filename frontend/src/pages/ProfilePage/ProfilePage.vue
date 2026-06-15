@@ -9,20 +9,18 @@
         </div>
         <div class="banner-info">
           <div class="banner-name-row">
-            <h1>{{ userInfo.nickname }}</h1>
-            <span class="banner-level">Lv.{{ userInfo.level }}</span>
+            <h1>{{ userInfo.nickname || '用户' }}</h1>
+            <span v-if="userInfo.id" class="banner-level">观鸟爱好者</span>
           </div>
           <p class="banner-bio" @click="handleEditBio">
             {{ userInfo.bio || '✏️ 点击添加个人介绍，让大家更了解你...' }}
           </p>
           <div class="banner-stats">
-            <div><strong>{{ userInfo.postsCount }}</strong> 发布</div>
+            <div><strong>{{ posts.length }}</strong> 发布</div>
             <div class="stat-divider"></div>
-            <div><strong>{{ userInfo.likesCount }}</strong> 获赞</div>
+            <div><strong>{{ userInfo.like_count || 0 }}</strong> 获赞</div>
             <div class="stat-divider"></div>
-            <div><strong>128</strong> 粉丝</div>
-            <div class="stat-divider"></div>
-            <div><strong>56</strong> 关注</div>
+            <div><strong>{{ records.length }}</strong> 识别</div>
           </div>
         </div>
         <button class="banner-edit-btn" @click="handleEditProfile">✏️ 编辑资料</button>
@@ -40,121 +38,211 @@
       </div>
     </div>
 
-    <!-- 内容区：标签页 + 网格（浅灰背景） -->
+    <!-- 内容区：标签页 + 网格 -->
     <div class="content-section">
       <div class="section-inner">
-        <!-- 标签栏 -->
-        <div class="content-tabs">
-          <button
-            v-for="t in tabs"
-            :key="t.key"
-            class="content-tab"
-            :class="{ active: activeTab === t.key }"
-            @click="switchTab(t.key)"
-          >
-            <span class="tab-emoji">{{ t.icon }}</span>
-            {{ t.label }}
-            <span v-if="t.count" class="tab-badge">{{ t.count }}</span>
-          </button>
+        <!-- 加载状态 -->
+        <div v-if="isLoading" class="loading-block">
+          <div class="skeleton" style="height:200px;"></div>
         </div>
 
-        <!-- 内容 -->
-        <div class="content-body">
-          <div v-if="isLoading" class="loading-block">
-            <div class="skeleton" style="height:200px;"></div>
+        <!-- 标签栏 -->
+        <template v-else>
+          <div class="content-tabs">
+            <button
+              v-for="t in tabs"
+              :key="t.key"
+              class="content-tab"
+              :class="{ active: activeTab === t.key }"
+              @click="switchTab(t.key)"
+            >
+              <span class="tab-emoji">{{ t.icon }}</span>
+              {{ t.label }}
+              <span v-if="t.count" class="tab-badge">{{ t.count }}</span>
+            </button>
           </div>
-          <div v-else-if="currentContent.length === 0" class="empty-block">
-            <span class="empty-emoji">📭</span>
-            <h3>{{ emptyText }}</h3>
-          </div>
-          <div v-else class="content-grid">
-            <div v-for="item in currentContent" :key="item.id" class="grid-cell fade-in">
-              <HomePoster :poster-data="item" />
+
+          <!-- 内容 -->
+          <div class="content-body">
+            <div v-if="currentContent.length === 0" class="empty-block">
+              <span class="empty-emoji">📭</span>
+              <h3>{{ emptyText }}</h3>
+            </div>
+            <div v-else class="content-grid">
+              <div v-for="item in currentContent" :key="item.id" class="grid-cell fade-in">
+                <HomePoster :poster-data="item" />
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
 import HomePoster from '@/components/HomePoster.vue'
-import { UserService } from '@/api/services/user.js'
+import UserService from '@/api/services/user.js'
+import PostService from '@/api/services/post.js'
+import RecognitionService from '@/api/services/recognition.js'
+import UploadService from '@/api/services/upload.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast, showEditableModal } from '@/utils/toast.js'
 import { chooseImages } from '@/utils/helpers.js'
 
-const userService = new UserService()
+const auth = useAuthStore()
 
-export default {
-  name: 'ProfilePage',
-  components: { HomePoster },
-  data() {
-    return {
-      isLoading: false,
-      activeTab: 'posts',
-      tabs: [
-        { key: 'posts', label: '发布', icon: '📷', count: 12 },
-        { key: 'likes', label: '点赞', icon: '❤️', count: 88 },
-        { key: 'records', label: '识别', icon: '🔍', count: 5 },
-      ],
-      userInfo: { avatar: 'static/default-avatar.png', nickname: '鸟类爱好者', bio: '', postsCount: 12, likesCount: 256, level: 5 },
-      posts: [],
-      likes: [],
-      records: [],
+// ---- 状态 ----
+const isLoading = ref(true)
+const activeTab = ref('posts')
+const userInfo = ref({ avatar: '', nickname: '用户', bio: '', level: 1, like_count: 0 })
+const posts = ref([])
+const likes = ref([])
+const records = ref([])
+
+const tabs = computed(() => [
+  { key: 'posts', label: '发布', icon: '📷', count: posts.value.length || 0 },
+  { key: 'likes', label: '点赞', icon: '❤️', count: likes.value.length || 0 },
+  { key: 'records', label: '识别', icon: '🔍', count: records.value.length || 0 },
+])
+
+const currentContent = computed(() => {
+  if (activeTab.value === 'posts') return posts.value
+  if (activeTab.value === 'likes') return likes.value
+  return records.value
+})
+
+const emptyText = computed(() => ({
+  posts: '还没有发布过内容',
+  likes: '还没有点赞过内容',
+  records: '还没有识别记录',
+}[activeTab.value] || '暂无内容'))
+
+const userAvatarUrl = computed(() => {
+  const a = userInfo.value.avatar || ''
+  if (!a) return 'static/default-avatar.png'
+  if (a.startsWith('http') || a.startsWith('blob:')) return a
+  return getOSSUrl(a, 'avatar')
+})
+
+// ---- API 加载 ----
+async function loadUserProfile() {
+  try {
+    const res = await UserService.getCurrentUser()
+    const data = res.data?.data
+    if (data) {
+      userInfo.value = data
+      auth.updateUser(data)
     }
-  },
-  computed: {
-    currentContent() { return this[this.activeTab] || [] },
-    emptyText() { return { posts: '还没有发布过内容', likes: '还没有点赞过内容', records: '还没有识别记录' }[this.activeTab] || '暂无内容' },
-    userAvatarUrl() {
-      const a = this.userInfo.avatar || 'static/default-avatar.png'
-      if (a.startsWith('http') || a.startsWith('blob:')) return a
-      return getOSSUrl(a, 'medium')
-    }
-  },
-  async mounted() {
-    try { this.userInfo.bio = await userService.getIntro() || '' } catch {}
-    this.loadContent()
-  },
-  methods: {
-    async handleAvatarClick() {
-      try { const r = await chooseImages({ count: 1 }); if (r.tempFilePaths.length) { this.userInfo.avatar = r.tempFilePaths[0]; showToast('头像已更新', 'success') } } catch { showToast('上传失败', 'error') }
-    },
-    handleAvatarError() { this.userInfo.avatar = 'static/default-avatar.png' },
-    async handleEditBio() {
-      const r = await showEditableModal('编辑个人介绍', this.userInfo.bio)
-      if (r.confirm) { this.userInfo.bio = r.content || ''; showToast('已更新', 'success') }
-    },
-    handleEditProfile() { showToast('编辑功能开发中', 'none') },
-    switchTab(key) { if (this.activeTab !== key) { this.activeTab = key; this.loadContent() } },
-    async loadContent() {
-      this.isLoading = true
-      await new Promise(r => setTimeout(r, 400))
-      const mockPosts = [
-        { id: 1, imageUrl: 'static/posts/bird1.jpg', imageHeight: 200, description: '今天拍到的小鸟，太可爱了！', views: 1234, likes: 88 },
-        { id: 2, imageUrl: 'static/posts/bird2.jpg', imageHeight: 240, description: '清晨的候鸟迁徙场景', views: 2567, likes: 189 },
-        { id: 3, imageUrl: 'static/posts/bird3.jpg', imageHeight: 180, description: '蜂鸟悬停采蜜的瞬间', views: 543, likes: 23 },
-        { id: 4, imageUrl: 'static/posts/bird4.jpg', imageHeight: 260, description: '金刚鹦鹉的绚烂色彩', views: 876, likes: 45 },
-        { id: 5, imageUrl: 'static/posts/bird1.jpg', imageHeight: 210, description: '春天的白头鹎', views: 320, likes: 16 },
-        { id: 6, imageUrl: 'static/posts/bird2.jpg', imageHeight: 230, description: '翠鸟捕鱼精彩瞬间', views: 410, likes: 28 },
-      ]
-      const mockLikes = [
-        { id: 7, imageUrl: 'static/posts/bird2.jpg', imageHeight: 220, description: '好漂亮的鸟儿！', views: 2567, likes: 189 },
-        { id: 8, imageUrl: 'static/posts/bird3.jpg', imageHeight: 200, description: '太可爱了，收藏了', views: 890, likes: 67 },
-      ]
-      const mockRecords = [
-        { id: 9, imageUrl: 'static/recognition/bird1.jpg', imageHeight: 220, description: '红头长尾山雀', accuracy: '98%', date: '2024-03-20' },
-        { id: 10, imageUrl: 'static/recognition/bird2.jpg', imageHeight: 200, description: '白头硬尾鹎', accuracy: '97%', date: '2024-03-18' },
-      ]
-      if (this.activeTab === 'posts') this.posts = mockPosts
-      else if (this.activeTab === 'likes') this.likes = mockLikes
-      else this.records = mockRecords
-      this.isLoading = false
-    },
+  } catch {
+    // 静默处理
   }
 }
+
+async function loadUserPosts() {
+  try {
+    const res = await PostService.getPostList(1, 50)
+    const items = res.data?.data?.items || []
+    const currentUserId = userInfo.value.id
+    // 过滤当前用户自己的帖子
+    const userPosts = items.filter(p => p.author_id === currentUserId)
+    posts.value = userPosts.map(p => ({
+      id: p.id,
+      imageUrl: p.images?.length ? p.images[0] : '',
+      imageHeight: 200 + Math.floor(Math.random() * 80),
+      description: p.title,
+      views: p.like_count || 0,
+      likes: p.comment_count || 0,
+    }))
+  } catch {
+    posts.value = []
+  }
+}
+
+async function loadRecognitionRecords() {
+  try {
+    const res = await RecognitionService.getRecords(1, 50)
+    const items = res.data?.data?.items || []
+    records.value = items.map(r => ({
+      id: r.id,
+      imageUrl: r.image_url || '',
+      imageHeight: 200,
+      description: r.result?.length
+        ? r.result.map(b => `${b.name} ${Math.round((b.confidence || 0) * 100)}%`).join(' · ')
+        : '识别结果',
+      accuracy: r.result?.[0] ? `${Math.round(r.result[0].confidence * 100)}%` : '',
+      date: r.created_at || '',
+      views: 0,
+      likes: 0,
+    }))
+  } catch {
+    records.value = []
+  }
+}
+
+async function loadAllData() {
+  isLoading.value = true
+  await loadUserProfile()
+  await Promise.all([loadUserPosts(), loadRecognitionRecords()])
+  isLoading.value = false
+}
+
+// ---- 操作 ----
+async function handleAvatarClick() {
+  try {
+    const result = await chooseImages({ count: 1 })
+    if (!result.files?.length) return
+
+    showToast('上传中...', 'loading')
+    const uploadRes = await UploadService.uploadImage(result.files[0])
+    const uploadedUrl = uploadRes.data?.data?.url
+    if (uploadedUrl) {
+      // 先本地预览
+      userInfo.value.avatar = result.tempFilePaths[0]
+      // 更新到后端
+      await UserService.updateProfile({ avatar: uploadedUrl })
+      // 重新拉取
+      await loadUserProfile()
+      showToast('头像已更新', 'success')
+    }
+  } catch (err) {
+    showToast(err?.message || '上传失败', 'error')
+  }
+}
+
+function handleAvatarError() {
+  userInfo.value.avatar = ''
+}
+
+async function handleEditBio() {
+  const r = await showEditableModal('编辑个人介绍', userInfo.value.bio || '')
+  if (r.confirm) {
+    try {
+      await UserService.updateProfile({ bio: r.content || '' })
+      userInfo.value.bio = r.content || ''
+      auth.updateUser({ bio: r.content || '' })
+      showToast('已更新', 'success')
+    } catch (err) {
+      showToast(err?.message || '更新失败', 'error')
+    }
+  }
+}
+
+function handleEditProfile() {
+  showToast('编辑资料功能开发中', 'none')
+}
+
+function switchTab(key) {
+  if (activeTab.value !== key) {
+    activeTab.value = key
+  }
+}
+
+onMounted(() => {
+  loadAllData()
+})
 </script>
 
 <style scoped>

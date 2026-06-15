@@ -1,20 +1,13 @@
 /**
  * API配置文件 - Web版本
+ * 端点路径与后端 FastAPI 路由一致
  */
 const ENV = {
   development: {
-    BASE_URL: 'http://localhost:8080',
-    BIRD_API: 'http://localhost:8080/api/v1/birds',
-    USER_API: 'http://localhost:8080/api/v1/users',
-    UPLOAD_API: 'http://localhost:8080/api/v1/upload',
-    WEBSOCKET_URL: 'ws://localhost:8080/ws'
+    BASE_URL: '',
   },
   production: {
-    BASE_URL: 'https://api.birdwing.cloud',
-    BIRD_API: 'https://api.birdwing.cloud/api/v1/birds',
-    USER_API: 'https://api.birdwing.cloud/api/v1/users',
-    UPLOAD_API: 'https://api.birdwing.cloud/api/v1/upload',
-    WEBSOCKET_URL: 'wss://api.birdwing.cloud/ws'
+    BASE_URL: '',
   }
 }
 
@@ -26,16 +19,15 @@ export const API_CONFIG = {
   RETRY_COUNT: 3,
   RETRY_DELAY: 1000,
   UPLOAD: {
-    MAX_FILE_SIZE: 50,
+    MAX_FILE_SIZE: 10,   // 后端限制 10MB
     ALLOWED_IMAGE_TYPES: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
     UPLOAD_TIMEOUT: 30000
   },
   PAGINATION: {
     DEFAULT_PAGE: 1,
     DEFAULT_SIZE: 20,
-    MAX_SIZE: 100
+    MAX_SIZE: 50          // 后端限制最大 50
   },
-  API_VERSION: 'v1',
   HEADERS: {
     'Content-Type': 'application/json',
     'X-Client-Type': 'web',
@@ -46,19 +38,15 @@ export const API_CONFIG = {
 export const STATUS_CODES = {
   SUCCESS: 200,
   CREATED: 201,
-  NO_CONTENT: 204,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   METHOD_NOT_ALLOWED: 405,
   REQUEST_TIMEOUT: 408,
-  CONFLICT: 409,
   PAYLOAD_TOO_LARGE: 413,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503,
-  GATEWAY_TIMEOUT: 504
+  UNPROCESSABLE: 422,
+  INTERNAL_SERVER_ERROR: 500
 }
 
 export const ERROR_MESSAGES = {
@@ -67,9 +55,9 @@ export const ERROR_MESSAGES = {
   [STATUS_CODES.FORBIDDEN]: '没有访问权限',
   [STATUS_CODES.NOT_FOUND]: '请求的资源不存在',
   [STATUS_CODES.REQUEST_TIMEOUT]: '请求超时，请稍后重试',
-  [STATUS_CODES.TOO_MANY_REQUESTS]: '请求过于频繁，请稍后重试',
+  [STATUS_CODES.PAYLOAD_TOO_LARGE]: '文件过大',
+  [STATUS_CODES.UNPROCESSABLE]: '请求数据校验失败',
   [STATUS_CODES.INTERNAL_SERVER_ERROR]: '服务器内部错误',
-  [STATUS_CODES.SERVICE_UNAVAILABLE]: '服务暂时不可用',
   NETWORK_ERROR: '网络连接失败，请检查网络设置',
   TIMEOUT_ERROR: '网络超时，请稍后重试',
   UPLOAD_ERROR: '文件上传失败，请重试',
@@ -77,62 +65,41 @@ export const ERROR_MESSAGES = {
   UNKNOWN_ERROR: '未知错误，请联系客服'
 }
 
+/**
+ * API 端点 — 与后端 app/routers/*.py 保持一致
+ */
 export const API_ENDPOINTS = {
   USER: {
-    LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    REGISTER: '/auth/register',
-    PROFILE: '/users/profile',
-    UPDATE_PROFILE: '/users/profile',
-    CHANGE_PASSWORD: '/users/password',
-    FAVORITES: '/users/favorites',
-    UPLOADS: '/users/uploads',
-    STATISTICS: '/users/statistics'
+    REGISTER: '/api/users/register',
+    LOGIN: '/api/users/login',
+    ME: '/api/users/me',          // GET 获取 / PUT 更新
+    DETAIL: '/api/users/{id}',    // GET 获取指定用户
+  },
+  POST: {
+    LIST: '/api/posts',                // GET 列表
+    DETAIL: '/api/posts/{id}',         // GET 详情
+    CREATE: '/api/posts',              // POST 创建
+    UPDATE: '/api/posts/{id}',         // PUT 更新
+    DELETE: '/api/posts/{id}',         // DELETE 删除
+    LIKE: '/api/posts/{id}/like',      // POST 切换点赞
+    COMMENTS: '/api/posts/{id}/comments',       // GET 评论列表
+    CREATE_COMMENT: '/api/posts/{id}/comments', // POST 发表评论
   },
   BIRD: {
-    LIST: '/birds',
-    DETAIL: '/birds/{id}',
-    SEARCH: '/birds/search',
-    CATEGORIES: '/birds/categories',
-    ENCYCLOPEDIA: '/birds/encyclopedia',
-    IDENTIFY: '/birds/identify',
-    NEARBY: '/birds/nearby',
-    STATISTICS: '/birds/statistics',
-    LIKE: '/birds/{id}/like',
-    UNLIKE: '/birds/{id}/unlike'
-  },
-  POSTER: {
-    LIST: '/posters',
-    DETAIL: '/posters/{id}',
-    SEARCH: '/posters/search',
-    UPLOAD: '/posters/upload',
-    UPDATE: '/posters/{id}',
-    DELETE: '/posters/{id}',
-    LIKE: '/posters/{id}/like',
-    COMMENTS: '/posters/{id}/comments'
-  },
-  RANKING: {
-    VIEWS: '/ranking/views',
-    LIKES: '/ranking/likes',
-    UPLOADS: '/ranking/uploads',
-    USERS: '/ranking/users'
+    RANKINGS: '/api/birds/rankings',   // GET 排行榜
+    SEARCH: '/api/birds/search',       // GET 搜索
+    DETAIL: '/api/birds/{id}',         // GET 详情
   },
   UPLOAD: {
-    IMAGE: '/upload/image',
-    AUDIO: '/upload/audio',
-    VIDEO: '/upload/video',
-    AVATAR: '/upload/avatar'
+    IMAGE: '/api/upload/image',        // POST 上传图片
   },
-  SYSTEM: {
-    CONFIG: '/system/config',
-    VERSION: '/system/version',
-    ANNOUNCEMENTS: '/system/announcements',
-    FEEDBACK: '/system/feedback'
-  }
+  RECOGNITION: {
+    ANALYZE: '/api/recognition/analyze',                     // POST AI分析
+    ANALYZE_WITH_IMAGE: '/api/recognition/analyze-with-image', // POST 上传并识别
+    RECORDS: '/api/recognition/records',                     // GET 列表 / POST 保存
+    RECORD_DETAIL: '/api/recognition/records/{id}',          // GET 详情
+  },
 }
-
-export const HTTP_METHODS = { GET: 'GET', POST: 'POST', PUT: 'PUT', DELETE: 'DELETE', PATCH: 'PATCH' }
-export const CONTENT_TYPES = { JSON: 'application/json', FORM_DATA: 'multipart/form-data', URL_ENCODED: 'application/x-www-form-urlencoded' }
 
 export const STORAGE_KEYS = {
   TOKEN: 'access_token',
@@ -153,39 +120,18 @@ export const EVENT_NAMES = {
   UPLOAD_PROGRESS: 'uploadProgress',
   UPLOAD_SUCCESS: 'uploadSuccess',
   UPLOAD_FAILED: 'uploadFailed',
-  CHAT_MESSAGE: 'chatMessage',
   BIRD_IDENTIFIED: 'birdIdentified'
 }
 
+/**
+ * 将端点中的 {id} 占位符替换为实际参数值
+ */
 export function getApiUrl(endpoint, params = {}) {
-  let url = API_CONFIG.BASE_URL + endpoint
+  let url = endpoint
   Object.keys(params).forEach(key => {
     url = url.replace(`{${key}}`, params[key])
   })
   return url
-}
-
-export function getUploadUrl(type = 'image') {
-  const uploadEndpoints = {
-    image: API_ENDPOINTS.UPLOAD.IMAGE,
-    audio: API_ENDPOINTS.UPLOAD.AUDIO,
-    video: API_ENDPOINTS.UPLOAD.VIDEO,
-    avatar: API_ENDPOINTS.UPLOAD.AVATAR
-  }
-  return getApiUrl(uploadEndpoints[type] || uploadEndpoints.image)
-}
-
-export function isSupportedFileType(filename, type = 'image') {
-  const extension = filename.toLowerCase().split('.').pop()
-  const typeMap = {
-    image: API_CONFIG.UPLOAD.ALLOWED_IMAGE_TYPES
-  }
-  return typeMap[type]?.includes(extension) || false
-}
-
-export function isValidFileSize(fileSize) {
-  const maxSize = API_CONFIG.UPLOAD.MAX_FILE_SIZE * 1024 * 1024
-  return fileSize <= maxSize
 }
 
 export function getErrorMessage(statusCode, defaultMessage = ERROR_MESSAGES.UNKNOWN_ERROR) {

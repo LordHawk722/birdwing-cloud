@@ -1,96 +1,44 @@
 /**
- * 鸟类API服务 - Web版本
+ * @deprecated 此文件已被拆分至 api/services/bird.js、api/services/post.js 等。
+ * 保留此文件作为向后兼容的重导出包装。
  */
-import { request } from '@/utils/request.js'
-import { API_CONFIG } from '@/config/api.js'
+import BirdApiService from './services/bird.js'
+import PostService from './services/post.js'
 
 class BirdService {
-  async getPosterList(params = {}) {
-    const { page = 1, size = 20, type = 'all' } = params
-    const response = await request.get(`${API_CONFIG.BIRD_API}/posters`, { params: { page, size, type } })
-    return { code: 200, data: response.data, message: '获取成功' }
-  }
-
-  async searchPosters(params) {
-    const { keyword, page = 1, size = 20 } = params
-    if (!keyword || keyword.trim() === '') throw new Error('搜索关键词不能为空')
-    const response = await request.get(`${API_CONFIG.BIRD_API}/posters/search`, { params: { keyword: keyword.trim(), page, size } })
-    return { code: 200, data: response.data, message: '搜索成功' }
-  }
-
-  async getPosterDetail(posterId) {
-    if (!posterId) throw new Error('海报ID不能为空')
-    const response = await request.get(`${API_CONFIG.BIRD_API}/posters/${posterId}`)
-    return { code: 200, data: response.data, message: '获取成功' }
-  }
-
-  async likePoster(posterId) {
-    if (!posterId) throw new Error('海报ID不能为空')
-    const response = await request.post(`${API_CONFIG.BIRD_API}/posters/${posterId}/like`)
-    return { code: 200, data: response.data, message: '点赞成功' }
-  }
-
-  async unlikePoster(posterId) {
-    if (!posterId) throw new Error('海报ID不能为空')
-    const response = await request.post(`${API_CONFIG.BIRD_API}/posters/${posterId}/unlike`)
-    return { code: 200, data: response.data, message: '取消点赞成功' }
-  }
-
-  async getEncyclopediaList(params = {}) {
-    const { page = 1, size = 20, category = 'all' } = params
-    const response = await request.get(`${API_CONFIG.BIRD_API}/encyclopedia`, { params: { page, size, category } })
-    return { code: 200, data: response.data, message: '获取成功' }
-  }
-
-  async searchEncyclopedia(params) {
-    const { keyword, page = 1, size = 20 } = params
-    if (!keyword || keyword.trim() === '') throw new Error('搜索关键词不能为空')
-    const response = await request.get(`${API_CONFIG.BIRD_API}/encyclopedia/search`, { params: { keyword: keyword.trim(), page, size } })
-    return { code: 200, data: response.data, message: '搜索成功' }
-  }
-
-  async getBirdDetail(birdId) {
-    if (!birdId) throw new Error('鸟类ID不能为空')
-    const response = await request.get(`${API_CONFIG.BIRD_API}/encyclopedia/${birdId}`)
-    return { code: 200, data: response.data, message: '获取成功' }
-  }
-
-  async getBirdCategories() {
-    const response = await request.get(`${API_CONFIG.BIRD_API}/categories`)
-    return { code: 200, data: response.data, message: '获取成功' }
-  }
-
+  // 鸟类相关 → api/services/bird.js
   async getRankingList(params = {}) {
-    const { type = 'views', period = 'week', limit = 50 } = params
-    const response = await request.get(`${API_CONFIG.BIRD_API}/ranking`, { params: { type, period, limit } })
-    return { code: 200, data: response.data, message: '获取成功' }
+    return BirdApiService.getRankings(params.limit || 10)
   }
-
-  async uploadBirdPhoto(params) {
-    const { imageFile, description = '', location = '', tags = [] } = params
-    if (!imageFile) throw new Error('图片不能为空')
-    const formData = new FormData()
-    formData.append('image', imageFile)
-    formData.append('description', description)
-    formData.append('location', location)
-    formData.append('tags', JSON.stringify(tags))
-    const response = await request.post(`${API_CONFIG.BIRD_API}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    return { code: 200, data: response.data, message: '上传成功' }
-  }
-
-  async getEncyclopedia(params = {}) {
-    return await request.get('/api/birds/encyclopedia', { params })
-  }
-
   async searchBirds(keyword) {
-    return await request.get('/api/birds/search', { params: { keyword } })
+    return BirdApiService.searchBirds(keyword)
+  }
+  async getBirdDetail(birdId) {
+    return BirdApiService.getBirdDetail(birdId)
   }
 
-  async likeBird(id) {
-    return await request.post(`/api/birds/${id}/like`)
+  // 帖子相关 → api/services/post.js
+  async getPosterList(params = {}) {
+    return PostService.getPostList(params.page || 1, params.size || 20)
   }
+  async getPosterDetail(posterId) {
+    return PostService.getPostDetail(posterId)
+  }
+  async likePoster(posterId) {
+    return PostService.toggleLike(posterId)
+  }
+  async unlikePoster(posterId) {
+    return PostService.toggleLike(posterId) // 后端是 toggle 模式，再次调用即取消
+  }
+
+  // 暂不支持的方法（后端无对应端点）
+  async searchPosters() { throw new Error('searchPosters not supported — use GET /api/posts with client-side filtering') }
+  async getEncyclopediaList() { return BirdApiService.searchBirds('', 1, 20) }
+  async searchEncyclopedia(params) { return BirdApiService.searchBirds(params.keyword, params.page, params.size) }
+  async getBirdCategories() { throw new Error('getBirdCategories not supported — backend has no categories endpoint') }
+  async uploadBirdPhoto() { throw new Error('uploadBirdPhoto — use UploadService.uploadImage() instead') }
+  async getEncyclopedia() { return BirdApiService.searchBirds('', 1, 20) }
+  async likeBird() { throw new Error('likeBird not supported') }
 }
 
 export default new BirdService()

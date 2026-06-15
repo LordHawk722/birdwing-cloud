@@ -102,6 +102,7 @@ import BirdKnowledgeCard from '@/components/BirdKnowledgeCard.vue'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast } from '@/utils/toast.js'
 import { vibrate } from '@/utils/helpers.js'
+import BirdApiService from '@/api/services/bird.js'
 
 const router = useRouter()
 const currentMode = ref('search')
@@ -227,9 +228,24 @@ const onCardShare = (bird) => {
 const performSearch = async () => {
   isSearching.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
+    const res = await BirdApiService.searchBirds(searchKeyword.value.trim(), 1, 20)
+    const birds = res.data?.data?.birds || []
+    searchResults.value = birds.map(b => ({
+      id: b.id,
+      name: b.name,
+      scientificName: b.latin_name || '',
+      imageUrl: b.image_url || '',
+      tags: [b.region, b.habits].filter(Boolean).slice(0, 3),
+    }))
+  } catch {
+    // API 失败时回退到本地 mock 搜索
     const keyword = searchKeyword.value.toLowerCase()
-    searchResults.value = mockBirdData.filter(b => b.name.toLowerCase().includes(keyword) || b.scientificName.toLowerCase().includes(keyword) || b.tags.some(t => t.includes(keyword)) || b.habitat.includes(keyword))
+    searchResults.value = mockBirdData.filter(b =>
+      b.name.toLowerCase().includes(keyword) ||
+      b.scientificName.toLowerCase().includes(keyword) ||
+      b.tags.some(t => t.includes(keyword)) ||
+      b.habitat.includes(keyword)
+    )
   } finally { isSearching.value = false }
 }
 
