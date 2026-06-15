@@ -108,6 +108,7 @@ class PostListItem(BaseModel):
     location: str
     like_count: int
     comment_count: int
+    is_liked: bool = False
     author_id: int
     author_name: str
     author_avatar: str

@@ -81,6 +81,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/posts',              // POST 创建
     UPDATE: '/api/posts/{id}',         // PUT 更新
     DELETE: '/api/posts/{id}',         // DELETE 删除
+    LOCATIONS: '/api/posts/locations',           // GET 位置统计
     LIKE: '/api/posts/{id}/like',      // POST 切换点赞
     COMMENTS: '/api/posts/{id}/comments',       // GET 评论列表
     CREATE_COMMENT: '/api/posts/{id}/comments', // POST 发表评论

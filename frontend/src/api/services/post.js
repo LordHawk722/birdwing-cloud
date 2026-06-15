@@ -29,7 +29,12 @@ export class PostService {
 
   /** 删除帖子 → DELETE /api/posts/{id} （需登录 + 本人） */
   async deletePost(id) {
-    return request.del(API_ENDPOINTS.POST.DELETE.replace('{id}', id))
+    return request.delete(API_ENDPOINTS.POST.DELETE.replace('{id}', id))
+  }
+
+  /** 位置统计 → GET /api/posts/locations */
+  async getLocations() {
+    return request.get(API_ENDPOINTS.POST.LOCATIONS)
   }
 
   /** 点赞/取消点赞 → POST /api/posts/{id}/like （需登录，toggle 模式） */

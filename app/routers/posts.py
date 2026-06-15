@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.database import get_db
 from app.models import User, Post, PostLike, Comment
 from app.schemas import (
@@ -53,6 +53,16 @@ def list_posts(
     user_ids = [p.user_id for p in posts]
     users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
 
+    # 批量查询当前用户对所有帖子的点赞状态
+    likes_set = set()
+    if current_user:
+        post_ids = [p.id for p in posts]
+        liked_rows = db.query(PostLike.post_id).filter(
+            PostLike.post_id.in_(post_ids),
+            PostLike.user_id == current_user.id,
+        ).all()
+        likes_set = {row[0] for row in liked_rows}
+
     items = []
     for post in posts:
         author = users.get(post.user_id)
@@ -64,6 +74,7 @@ def list_posts(
             location=post.location or "",
             like_count=post.like_count or 0,
             comment_count=post.comment_count or 0,
+            is_liked=post.id in likes_set,
             author_id=post.user_id,
             author_name=author.nickname if author else "未知",
             author_avatar=author.avatar if author else "",
@@ -81,6 +92,20 @@ def list_posts(
             total_pages=total_pages,
         ),
     })
+
+
+@router.get("/locations", response_model=ResponseWrapper)
+def get_post_locations(db: Session = Depends(get_db)):
+    """获取所有帖子的位置统计"""
+    results = db.query(
+        Post.location, func.count(Post.id).label("count")
+    ).filter(
+        Post.location != "", Post.location.isnot(None)
+    ).group_by(Post.location).all()
+
+    return ResponseWrapper(data=[
+        {"name": loc, "count": cnt} for loc, cnt in results
+    ])
 
 
 @router.get("/{post_id}", response_model=ResponseWrapper)
@@ -139,6 +164,9 @@ def delete_post(
     if post.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除")
 
+    # 先删除关联的评论和点赞
+    db.query(Comment).filter(Comment.post_id == post_id).delete()
+    db.query(PostLike).filter(PostLike.post_id == post_id).delete()
     db.delete(post)
     db.commit()
 

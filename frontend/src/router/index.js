@@ -9,6 +9,12 @@ const routes = [
     meta: { title: '首页' }
   },
   {
+    path: '/post/:id',
+    name: 'PostDetail',
+    component: () => import('@/pages/PostDetail/PostDetail.vue'),
+    meta: { title: '帖子详情' }
+  },
+  {
     path: '/upload',
     name: 'UploadPage',
     component: () => import('@/pages/UploadPage/UploadPage.vue'),
@@ -19,6 +25,12 @@ const routes = [
     name: 'MapPage',
     component: () => import('@/pages/MapPage/MapPage.vue'),
     meta: { title: '地图' }
+  },
+  {
+    path: '/location-posts',
+    name: 'LocationPosts',
+    component: () => import('@/pages/LocationPosts/LocationPosts.vue'),
+    meta: { title: '位置帖子' }
   },
   {
     path: '/profile',

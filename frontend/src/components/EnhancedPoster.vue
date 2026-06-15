@@ -21,7 +21,7 @@
         <span class="stat">💬 {{ fmt(posterData.comments || 0) }}</span>
         <div class="card-actions">
           <button class="action like" :class="{ liked }" @click.stop="handleLike">
-            {{ liked ? '❤️' : '🤍' }} {{ fmt(posterData.likes) }}
+            {{ liked ? '❤️' : '🤍' }} {{ fmt(posterData.likeCount) }}
           </button>
         </div>
       </div>
@@ -41,7 +41,7 @@ const emit = defineEmits(['like', 'view'])
 
 const loaded = ref(false)
 const expanded = ref(false)
-const liked = ref(false)
+const liked = computed(() => props.posterData.isLiked || false)
 
 const imgHeight = computed(() => props.posterData.imageHeight || 200)
 const longText = computed(() => props.posterData.description?.length > 60)
@@ -60,8 +60,6 @@ const authorAvatarUrl = computed(() => {
 })
 
 const handleLike = () => {
-  if (liked.value) return
-  liked.value = true
   emit('like', props.posterData)
   vibrate('medium')
 }
