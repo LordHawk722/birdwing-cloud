@@ -16,13 +16,13 @@
     <div class="poster-info">
       <div class="poster-description">{{ posterData.description }}</div>
       <div class="poster-stats">
-        <div class="stat-item" v-if="posterData.views">
-          <span class="stat-icon">👁</span>
-          <span class="stat-text">{{ formatNumber(posterData.views) }}</span>
+        <div class="stat-item" v-if="posterData.comments != null">
+          <span class="stat-icon">💬</span>
+          <span class="stat-text">{{ formatNumber(posterData.comments) }}</span>
         </div>
-        <div class="stat-item" v-if="posterData.likes">
+        <div class="stat-item">
           <span class="stat-icon">❤️</span>
-          <span class="stat-text">{{ formatNumber(posterData.likes) }}</span>
+          <span class="stat-text">{{ formatNumber(posterData.likes || 0) }}</span>
         </div>
         <div class="stat-item" v-if="posterData.accuracy">
           <span class="accuracy-text">{{ posterData.accuracy }}</span>

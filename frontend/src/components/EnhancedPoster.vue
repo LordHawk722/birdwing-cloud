@@ -11,22 +11,18 @@
     <div class="card-body">
       <div class="card-author">
         <img :src="authorAvatarUrl" class="author-avatar" alt="" />
-        <div>
-          <div class="author-name">{{ posterData.author?.name || '匿名用户' }}</div>
-          <div class="author-time">{{ posterData.publishTime || '刚刚' }}</div>
-        </div>
+        <div class="author-name">{{ posterData.author?.name || '匿名用户' }}</div>
       </div>
 
       <p class="card-desc" :class="{ expanded: expanded }">{{ posterData.description }}</p>
       <button v-if="longText" class="expand-btn" @click.stop="expanded = !expanded">{{ expanded ? '收起' : '展开全文' }}</button>
 
       <div class="card-footer">
-        <span class="stat">👁 {{ fmt(posterData.views) }}</span>
+        <span class="stat">💬 {{ fmt(posterData.comments || 0) }}</span>
         <div class="card-actions">
           <button class="action like" :class="{ liked }" @click.stop="handleLike">
             {{ liked ? '❤️' : '🤍' }} {{ fmt(posterData.likes) }}
           </button>
-          <button class="action share" @click.stop="handleShare">↗</button>
         </div>
       </div>
     </div>
@@ -36,13 +32,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { getOSSUrl } from '@/config/oss.js'
-import { showToast, showActionSheet } from '@/utils/toast.js'
 import { vibrate } from '@/utils/helpers.js'
 
 const props = defineProps({
   posterData: { type: Object, required: true }
 })
-const emit = defineEmits(['like', 'view', 'share'])
+const emit = defineEmits(['like', 'view'])
 
 const loaded = ref(false)
 const expanded = ref(false)
@@ -69,12 +64,6 @@ const handleLike = () => {
   liked.value = true
   emit('like', props.posterData)
   vibrate('medium')
-}
-const handleShare = () => {
-  emit('share', props.posterData)
-  showActionSheet(['分享链接', '保存图片', '举报']).then(i => {
-    if (i >= 0) showToast('已处理', 'success')
-  })
 }
 const fmt = (n) => {
   if (!n) return '0'
