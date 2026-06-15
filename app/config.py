@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     BAIDU_API_KEY: str = ""
     BAIDU_SECRET_KEY: str = ""
 
+    # AI 聊天配置（OpenAI 兼容 API，默认使用 DeepSeek）
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = "https://api.deepseek.com/v1"
+    AI_MODEL: str = "deepseek-chat"
+    AI_SYSTEM_PROMPT: str = "你是一个专业的鸟类专家和观鸟向导，名叫小羽。你的任务是帮助用户识别鸟类、了解鸟类知识、学习观鸟技巧。回答要准确、友好，使用中文。"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property
