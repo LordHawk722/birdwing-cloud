@@ -1,4 +1,4 @@
-# 众翼云鉴：智能鸟类摄享平台 — 软件设计说明书 (SDS)
+# 众翼云鉴：智能鸟类摄享平台 — 系统设计规约
 
 ---
 
@@ -17,7 +17,7 @@
 
 ### 1.1 编写目的
 
-本文档描述"众翼云鉴：智能鸟类摄享平台"的软件系统设计方案，包括系统架构、模块划分、数据库设计、API 接口规范、安全机制与部署策略，为项目开发、测试、部署与后续维护提供技术依据。
+本文档描述"众翼云鉴：智能鸟类摄享平台"的系统设计规约，包括系统架构、模块划分、数据库设计、API 接口规范、安全机制与部署策略，为项目开发、测试、部署与后续维护提供技术依据。
 
 ### 1.2 适用范围
 
@@ -27,19 +27,11 @@
 
 | 术语 | 定义 |
 |------|------|
-| SDS | Software Design Specification，软件设计说明书 |
-| SRS | Software Requirements Specification，软件需求规格说明书 |
+| SDS | Software Design Specification，系统设计规约 |
+| SRS | Software Requirements Specification，系统需求规约 |
 | SPA | Single Page Application，单页应用 |
 | ORM | Object-Relational Mapping，对象关系映射 |
 | DI | Dependency Injection，依赖注入 |
-
-### 1.4 参考文献
-
-- SRS 软件需求规格说明书
-- IFPUG 功能点分析报告
-- 系统边界定义图
-- 项目管理文档集
-- birdwing-cloud 代码仓库（最新实现）
 
 ---
 
