@@ -54,24 +54,22 @@ def search_birds(
     搜索鸟类
     按名称（中文名、学名）模糊搜索，匹配后增加 search_count
     """
-    if not keyword.strip():
-        return ResponseWrapper(data={
-            "birds": [],
-            "pagination": Pagination(page=1, page_size=page_size, total=0, total_pages=0),
-        })
-
     keyword = keyword.strip()
-    query = db.query(Bird).filter(
-        Bird.name.contains(keyword) | Bird.latin_name.contains(keyword)
-    ).order_by(desc(Bird.search_count))
+    query = db.query(Bird)
+    if keyword:
+        query = query.filter(
+            Bird.name.contains(keyword) | Bird.latin_name.contains(keyword)
+        )
+    query = query.order_by(desc(Bird.search_count))
 
     total = query.count()
     birds = query.offset((page - 1) * page_size).limit(page_size).all()
 
     # 增加搜索次数
-    for bird in birds:
-        bird.search_count = (bird.search_count or 0) + 1
-    db.commit()
+    if keyword:
+        for bird in birds:
+            bird.search_count = (bird.search_count or 0) + 1
+        db.commit()
 
     items = [BirdInfo.model_validate(bird) for bird in birds]
 
