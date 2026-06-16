@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 650" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <filter id="sd" x="-4%" y="-4%" width="112%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000010"/>
+    </filter>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+  </defs>
+
+  <!-- 系统边界 -->
+  <rect x="390" y="6" width="938" height="636" rx="18" fill="#f0fdf4" stroke="#059669" stroke-width="3" stroke-dasharray="12,6"/>
+  <rect x="630" y="0" width="458" height="30" fill="#f0fdf4"/>
+  <text x="859" y="21" text-anchor="middle" font-size="21" font-weight="600" fill="#059669" letter-spacing="1">系统边界内</text>
+
+  <text x="165" y="21" text-anchor="middle" font-size="21" fill="#94a3b8" letter-spacing="1">系统外部</text>
+
+  <!-- 外部: 5 boxes, 100px高, 间距20 -->
+  <rect x="22" y="42" width="285" height="100" rx="9" fill="#fafafa" stroke="#e5e7eb" filter="url(#sd)"/>
+  <rect x="22" y="42" width="6" height="100" rx="3" fill="#f59e0b"/>
+  <text x="164" y="74" text-anchor="middle" font-size="30">🌐</text>
+  <text x="164" y="108" text-anchor="middle" font-size="19" font-weight="600" fill="#374151">终端用户</text>
+
+  <rect x="22" y="162" width="285" height="100" rx="9" fill="#fafafa" stroke="#e5e7eb" filter="url(#sd)"/>
+  <rect x="22" y="162" width="6" height="100" rx="3" fill="#8b5cf6"/>
+  <text x="164" y="194" text-anchor="middle" font-size="30">🔬</text>
+  <text x="164" y="228" text-anchor="middle" font-size="19" font-weight="600" fill="#374151">AI 鸟类识别</text>
+
+  <rect x="22" y="282" width="285" height="100" rx="9" fill="#fafafa" stroke="#e5e7eb" filter="url(#sd)"/>
+  <rect x="22" y="282" width="6" height="100" rx="3" fill="#3b82f6"/>
+  <text x="164" y="314" text-anchor="middle" font-size="30">☁️</text>
+  <text x="164" y="348" text-anchor="middle" font-size="19" font-weight="600" fill="#374151">阿里云 OSS</text>
+
+  <rect x="22" y="402" width="285" height="100" rx="9" fill="#fafafa" stroke="#e5e7eb" filter="url(#sd)"/>
+  <rect x="22" y="402" width="6" height="100" rx="3" fill="#10b981"/>
+  <text x="164" y="434" text-anchor="middle" font-size="30">📍</text>
+  <text x="164" y="468" text-anchor="middle" font-size="19" font-weight="600" fill="#374151">地图 API</text>
+
+  <rect x="22" y="522" width="285" height="100" rx="9" fill="#fafafa" stroke="#e5e7eb" filter="url(#sd)"/>
+  <rect x="22" y="522" width="6" height="100" rx="3" fill="#ec4899"/>
+  <text x="164" y="554" text-anchor="middle" font-size="30">💬</text>
+  <text x="164" y="588" text-anchor="middle" font-size="19" font-weight="600" fill="#374151">AI 聊天服务</text>
+
+  <!-- 内部组件: 填满边界 -->
+  <!-- Vue3: y=30, h=185 -->
+  <rect x="450" y="30" width="858" height="185" rx="14" fill="#fff" stroke="#d1fae5" stroke-width="2" filter="url(#sd)"/>
+  <text x="520" y="136" text-anchor="middle" font-size="42">🖥️</text>
+  <text x="590" y="136" font-size="28" font-weight="700" fill="#1e293b">Vue 3 前端 Web 应用</text>
+
+  <!-- FastAPI: y=245, h=185 -->
+  <rect x="450" y="245" width="858" height="185" rx="14" fill="#fff" stroke="#bfdbfe" stroke-width="2" filter="url(#sd)"/>
+  <text x="520" y="351" text-anchor="middle" font-size="42">⚙️</text>
+  <text x="590" y="351" font-size="28" font-weight="700" fill="#1e293b">FastAPI 后端服务 (Python)</text>
+
+  <!-- MySQL: y=465, h=165 -->
+  <rect x="450" y="465" width="858" height="165" rx="14" fill="#fff" stroke="#fcd34d" stroke-width="2" filter="url(#sd)"/>
+  <text x="520" y="562" text-anchor="middle" font-size="42">🗄️</text>
+  <text x="590" y="562" font-size="28" font-weight="700" fill="#1e293b">MySQL 数据库</text>
+
+  <!-- 内部箭头 -->
+  <line x1="690" y1="215" x2="690" y2="242" stroke="#3b82f6" stroke-width="2" marker-end="url(#ab)"/>
+  <line x1="690" y1="430" x2="690" y2="462" stroke="#3b82f6" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- 跨边界连线 -->
+  <line x1="307" y1="92" x2="447" y2="100" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="7,5" marker-end="url(#ar)"/>
+  <line x1="307" y1="212" x2="447" y2="190" stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="7,5" marker-end="url(#ar)"/>
+  <line x1="307" y1="332" x2="447" y2="330" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="7,5" marker-end="url(#ar)"/>
+  <line x1="307" y1="452" x2="447" y2="380" stroke="#10b981" stroke-width="1.8" stroke-dasharray="7,5" marker-end="url(#ar)"/>
+  <line x1="307" y1="572" x2="447" y2="420" stroke="#ec4899" stroke-width="1.8" stroke-dasharray="7,5" marker-end="url(#ar)"/>
+</svg>
