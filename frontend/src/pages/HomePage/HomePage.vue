@@ -4,7 +4,7 @@
     <section class="hero">
       <div class="hero-slides">
         <div v-for="(banner, i) in bannerList" :key="i" class="hero-slide" :class="{ active: currentBanner === i }">
-          <div class="hero-bg" :style="{ backgroundImage: `url(${getOSSUrl(banner.imageUrl, 'banner')})` }"></div>
+          <div class="hero-bg" :style="{ backgroundImage: `url(${banner.imageUrl})` }"></div>
           <div class="hero-overlay"></div>
         </div>
       </div>
@@ -32,8 +32,11 @@
       <!-- 左侧：瀑布流（浅绿背景区） -->
       <section class="feed-section">
         <div class="section-header">
-          <h2>📸 社区发现</h2>
-          <span class="section-sub">探索鸟友们的最新记录</span>
+          <div class="section-header-left">
+            <h2>📸 社区发现</h2>
+            <span class="section-sub">探索鸟友们的最新记录</span>
+          </div>
+          <button class="create-post-btn" @click="openCreatePost">✚ 发布动态</button>
         </div>
 
         <div v-if="isLoading" class="loading-zone">
@@ -119,6 +122,8 @@
         </div>
       </aside>
     </div>
+
+    <CreatePostModal v-model:visible="showCreateModal" @created="loadPosts" />
   </div>
 </template>
 
@@ -126,10 +131,15 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import EnhancedPoster from '@/components/EnhancedPoster.vue'
-import { getOSSUrl } from '@/config/oss.js'
+import CreatePostModal from '@/components/CreatePostModal.vue'
+
 import { showToast } from '@/utils/toast.js'
 import BirdApiService from '@/api/services/bird.js'
 import PostService from '@/api/services/post.js'
+import { useAuthStore } from '@/stores/auth.js'
+
+const router = useRouter()
+const auth = useAuthStore()
 
 const router = useRouter()
 const POSTS_CACHE_KEY = 'homepage_posts_cache'
@@ -148,6 +158,17 @@ let swiperTimer = null
 let tipTimer = null
 let searchTimer = null
 
+// ---- 发布动态 ----
+const showCreateModal = ref(false)
+
+function openCreatePost() {
+  if (!auth.isAuthenticated.value) {
+    router.push('/login')
+    return
+  }
+  showCreateModal.value = true
+}
+
 const tips = [
   '清晨 5-8 点是观鸟的黄金时段，鸟儿们最活跃！',
   '穿灰/绿/棕色衣服更容易接近鸟类，荧光色是大忌！',
@@ -158,10 +179,10 @@ const tips = [
 const currentTip = computed(() => tips[tipIndex.value])
 
 const bannerList = [
-  { imageUrl: 'static/banner/toucan-banner.jpg', title: '发现自然之美', subtitle: '记录每一次与鸟类的美妙邂逅' },
-  { imageUrl: 'static/banner/eagle-banner.jpg', title: '翱翔天际', subtitle: '见证猛禽的威武与优雅' },
-  { imageUrl: 'static/banner/peacock-banner.jpg', title: '绚烂羽翼', subtitle: '感受大自然的色彩魅力' },
-  { imageUrl: 'static/banner/hummingbird-banner.jpg', title: '精灵悬停', subtitle: '捕捉蜂鸟的瞬间之美' },
+  { imageUrl: '/banner/1.jpg', title: '发现自然之美', subtitle: '记录每一次与鸟类的美妙邂逅' },
+  { imageUrl: '/banner/2.jpg', title: '翱翔天际', subtitle: '见证猛禽的威武与优雅' },
+  { imageUrl: '/banner/3.jpg', title: '绚烂羽翼', subtitle: '感受大自然的色彩魅力' },
+  { imageUrl: '/banner/4.jpg', title: '精灵悬停', subtitle: '捕捉蜂鸟的瞬间之美' },
 ]
 
 function fmtNum(n) {
@@ -284,7 +305,7 @@ onUnmounted(() => { clearInterval(swiperTimer); clearInterval(tipTimer) })
 }
 .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; }
 .hero-slide.active { opacity: 1; }
-.hero-bg { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.05); transition: transform 6s ease; }
+.hero-bg { position: absolute; inset: 0; background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #064e3b; transform: scale(1.05); transition: transform 6s ease; }
 .hero-slide.active .hero-bg { transform: scale(1); }
 .hero-overlay {
   position: absolute; inset: 0;
@@ -334,9 +355,19 @@ onUnmounted(() => { clearInterval(swiperTimer); clearInterval(tipTimer) })
   border-radius: var(--radius-xl);
   padding: 24px 20px;
 }
-.section-header { margin-bottom: 20px; }
+.section-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 20px;
+}
+.section-header-left { flex: 1; }
 .section-header h2 { font-size: 18px; font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
 .section-sub { font-size: 13px; color: var(--color-text-muted); }
+.create-post-btn {
+  padding: 8px 16px; background: var(--color-primary); color: #fff;
+  border: none; border-radius: 20px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s; white-space: nowrap;
+}
+.create-post-btn:hover { background: var(--color-primary-dark); }
 .masonry { display: flex; gap: 14px; align-items: flex-start; }
 .masonry-col { flex: 1; display: flex; flex-direction: column; gap: 14px; }
 .loading-zone { padding: 10px 0; }
@@ -406,7 +437,9 @@ onUnmounted(() => { clearInterval(swiperTimer); clearInterval(tipTimer) })
   .hero-dots { right: 20px; bottom: 18px; }
   .main-layout { padding: 20px 12px 32px; }
   .feed-section { padding: 16px 12px; }
+  .section-header { flex-direction: column; gap: 12px; }
   .masonry { gap: 10px; }
   .masonry-col { gap: 10px; }
 }
+
 </style>
