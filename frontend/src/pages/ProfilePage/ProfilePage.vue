@@ -209,6 +209,13 @@ async function loadUserPosts() {
   }
 }
 
+function formatRecordTime(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function loadRecognitionRecords() {
   try {
     const res = await RecognitionService.getRecords(1, 50)
@@ -221,9 +228,7 @@ async function loadRecognitionRecords() {
         ? r.result.map(b => `${b.name} ${Math.round((b.confidence || 0) * 100)}%`).join(' · ')
         : '识别结果',
       accuracy: r.result?.[0] ? `${Math.round(r.result[0].confidence * 100)}%` : '',
-      date: r.created_at || '',
-      views: 0,
-      likes: 0,
+      date: formatRecordTime(r.created_at),
     }))
   } catch {
     records.value = []

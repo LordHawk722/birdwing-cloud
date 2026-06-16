@@ -196,7 +196,9 @@ let editAcInstance = null
 
 const isOwner = computed(() => {
   const uid = auth.user.value?.id
-  return uid && post.value && uid === post.value.author?.id
+  const authorId = post.value?.author?.id
+  // 兼容 id 为数字或字符串的情况
+  return uid != null && authorId != null && String(uid) === String(authorId)
 })
 
 function resolveImageUrl(img) {
@@ -307,6 +309,7 @@ function loadBaiduScriptForEdit() {
 }
 
 async function initEditAutocomplete() {
+  if (!BAIDU_MAP_KEY) return
   await loadBaiduScriptForEdit()
   await nextTick()
   if (!window.BMap || !editLocationInput.value) return

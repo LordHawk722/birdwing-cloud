@@ -34,24 +34,48 @@ def check_file_size(content: bytes) -> None:
 
 async def save_upload_file(file: UploadFile, sub_dir: str = "images") -> str:
     """
-    保存上传文件，返回相对路径
+    保存上传文件到 OSS，返回完整 URL
+    未配置 OSS 时降级为本地存储
     """
-    # 生成唯一文件名
     ext = get_file_extension(file.filename)
     filename = f"{generate_uuid()}.{ext}"
 
-    # 创建目录
-    save_dir = Path(settings.UPLOAD_DIR) / sub_dir
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    # 读取并检查大小
     content = await file.read()
     check_file_size(content)
 
-    # 保存文件
+    # 优先使用 OSS
+    if settings.OSS_ACCESS_KEY_ID:
+        return await _upload_to_oss(content, filename, sub_dir)
+
+    # 降级为本地存储
+    return await _save_to_local(content, filename, sub_dir)
+
+
+async def _upload_to_oss(content: bytes, filename: str, sub_dir: str) -> str:
+    """上传到阿里云 OSS，返回完整 URL"""
+    import oss2
+
+    auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
+    bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET)
+
+    object_key = f"uploads/{sub_dir}/{filename}"
+    try:
+        result = bucket.put_object(object_key, content)
+        print(f"[OSS] 上传成功: {object_key}, status={result.status}")
+    except Exception as e:
+        print(f"[OSS] 上传失败: {e}")
+        raise
+
+    return f"https://{settings.OSS_BUCKET}.{settings.OSS_ENDPOINT}/{object_key}"
+
+
+async def _save_to_local(content: bytes, filename: str, sub_dir: str) -> str:
+    """降级为本地存储，返回相对路径"""
+    save_dir = Path(settings.UPLOAD_DIR) / sub_dir
+    save_dir.mkdir(parents=True, exist_ok=True)
+
     save_path = save_dir / filename
     with open(save_path, "wb") as f:
         f.write(content)
 
-    # 返回相对路径（用于构建URL）
     return f"uploads/{sub_dir}/{filename}"

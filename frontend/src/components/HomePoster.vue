@@ -20,9 +20,9 @@
           <span class="stat-icon">💬</span>
           <span class="stat-text">{{ formatNumber(posterData.comments) }}</span>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" v-if="posterData.likes != null">
           <span class="stat-icon">❤️</span>
-          <span class="stat-text">{{ formatNumber(posterData.likes || 0) }}</span>
+          <span class="stat-text">{{ formatNumber(posterData.likes) }}</span>
         </div>
         <div class="stat-item" v-if="posterData.accuracy">
           <span class="accuracy-text">{{ posterData.accuracy }}</span>

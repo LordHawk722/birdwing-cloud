@@ -4,8 +4,8 @@
 
 const OSS_CONFIG = {
   region: 'oss-cn-shanghai',
-  bucket: 'birdfront-oss',
-  endpoint: 'https://birdfront-oss.oss-cn-shanghai.aliyuncs.com',
+  bucket: 'birdwing-cloud',
+  endpoint: 'https://birdwing-cloud.oss-cn-shanghai.aliyuncs.com',
 
   imageProcess: {
     quality: 80,

@@ -9,8 +9,8 @@ birdwing-cloud/
 ├── frontend/                        # Vue 3 Web 前端
 │   ├── public/                      # 静态资源（Banner 图片等）
 │   ├── src/
-│   │   ├── pages/                   # 11 个页面
-│   │   ├── components/              # 7 个共享组件（含 CreatePostModal）
+│   │   ├── pages/                   # 13 个页面（含登录/注册/帖子详情/位置帖子）
+│   │   ├── components/              # 8 个共享组件（含 CreatePostModal）
 │   │   ├── router/                  # 路由配置 + 认证守卫
 │   │   ├── stores/                  # 响应式状态管理（auth）
 │   │   ├── api/                     # API 服务层（6 个模块）
@@ -30,10 +30,13 @@ birdwing-cloud/
 │   │   ├── posts.py                 # 帖子模块路由
 │   │   ├── birds.py                 # 鸟类百科路由
 │   │   ├── upload.py                # 文件上传路由
-│   │   └── recognition.py           # AI 识别路由
+│   │   ├── recognition.py           # AI 识别路由
+│   │   └── chat.py                  # AI 聊天路由（DeepSeek）
 │   └── services/
 │       ├── auth.py                  # JWT 认证服务
 │       └── bird_ai.py               # AI 识别服务
+├── scripts/
+│   └── import_birds_json.py         # 鸟类数据导入脚本
 ├── sql/
 │   ├── schema.sql                   # 数据库 DDL
 │   └── seed.sql                     # 种子数据
@@ -63,6 +66,7 @@ birdwing-cloud/
 - **响应式 Auth Store**（基于 `reactive()`/`computed()`，零依赖，localStorage 持久化）
 - **Vite 5**（开发代理 `/api`、`/uploads` → 后端 `8000`）
 - **Axios**（拦截器自动附加 Token + 401 过期处理，loading 按需启用）
+- **Marked**（Markdown 渲染）
 - **SCSS**（CSS 变量设计系统，响应式布局）
 
 ### 后端
@@ -134,19 +138,20 @@ mysql -u root -p < sql/seed.sql
 
 | 路径 | 页面 | 说明 | 需登录 |
 |------|------|------|--------|
-| `/` | 首页 | Banner 轮播 + 搜索 + 社区瀑布流 | ❌ |
-| `/upload` | 上传 | 图片上传与 AI 识别 | ✅ |
-| `/map` | 地图 | 鸟类观测点地图 | ❌ |
-| `/profile` | 我的 | 个人中心（资料、帖子、识别记录） | ✅ |
-| `/ranking` | 排行榜 | 热门鸟类搜索排行 | ❌ |
-| `/guide` | 引导 | 新手指南 | ❌ |
-| `/ai-chat` | AI 助理 | 鸟类知识问答 + 图片识别 | ❌ |
-| `/encyclopedia` | 图鉴 | 鸟类百科搜索 + 卡片翻阅 | ❌ |
+| `/` | 首页 | Banner 轮播 + 搜索 + 社区瀑布流 + 发布动态 | ❌ |
 | `/post/:id` | 帖子详情 | 内容全文、评论、点赞 | ❌ |
+| `/upload` | 上传 | 图片识别 + 发布帖子（双模式） | ✅ |
+| `/map` | 地图 | 鸟类观测点地图 + 位置导航 | ❌ |
+| `/location-posts` | 位置帖子 | 按位置浏览帖子 | ❌ |
+| `/profile` | 我的 | 个人中心（资料、帖子、识别记录、退出登录） | ✅ |
+| `/ranking` | 排行榜 | 热门鸟类搜索排行（Top 10/20/50 切换） | ❌ |
+| `/guide` | 引导 | 新手指南 | ❌ |
+| `/ai-chat` | AI 助理 | DeepSeek 驱动，流式输出 + Markdown + 多轮对话 + 历史记录 | ❌ |
+| `/encyclopedia` | 图鉴 | 鸟类百科搜索 + 卡片翻阅 | ❌ |
 | `/login` | 登录 | 用户登录 | ❌ |
 | `/register` | 注册 | 用户注册 | ❌ |
 
-> 上传和个人中心页面需要登录；未登录时自动跳转到登录页。首页和"我的"页面均可发起发布动态。
+> 上传和个人中心页面需要登录；未登录时自动跳转到登录页。首页、上传页和"我的"页面均可发布动态。
 
 ## 数据库设计
 
@@ -186,6 +191,7 @@ DDL 详见 [sql/schema.sql](sql/schema.sql)。
 | GET | `/api/posts/{id}` | 帖子详情 | ❌ |
 | PUT | `/api/posts/{id}` | 更新帖子 | ✅（本人） |
 | DELETE | `/api/posts/{id}` | 删除帖子 | ✅（本人） |
+| GET | `/api/posts/locations` | 位置统计 | ❌ |
 | POST | `/api/posts/{id}/like` | 点赞/取消点赞 | ✅ |
 | GET | `/api/posts/{id}/comments` | 评论列表（分页） | ❌ |
 | POST | `/api/posts/{id}/comments` | 发表评论 | ✅ |
@@ -214,7 +220,27 @@ DDL 详见 [sql/schema.sql](sql/schema.sql)。
 | GET | `/api/recognition/records` | 识别记录列表 | ✅ |
 | GET | `/api/recognition/records/{id}` | 识别记录详情 | ✅ |
 
-## AI 识别
+### AI 聊天 `/api/chat`
+
+| 方法 | 路径 | 说明 | 需登录 |
+|------|------|------|--------|
+| POST | `/api/chat` | AI 对话（支持流式 SSE） | ❌ |
+
+## AI 功能
+
+### 智能问答
+
+默认接入 **DeepSeek**（OpenAI 兼容 API），支持流式输出和 Markdown 渲染。配置 `.env`：
+
+```env
+AI_API_KEY=sk-your-key
+AI_BASE_URL=https://api.deepseek.com/v1
+AI_MODEL=deepseek-chat
+```
+
+未配置 API Key 时自动降级为本地兜底回复。
+
+### 图片识别
 
 当前提供**模拟识别模式**，随机从数据库中选取鸟类作为识别结果。若需对接真实 AI：
 

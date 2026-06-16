@@ -197,7 +197,7 @@ function mapPostItem(p) {
     imageHeight: 200 + Math.floor(Math.random() * 120),
     description: p.title,
     likeCount: p.like_count || 0,
-    commentCount: p.comment_count || 0,
+    comments: p.comment_count || 0,
     isLiked: p.is_liked || false,
     author: { name: p.author_name || '用户', avatar: p.author_avatar || '' },
     location: p.location || '',

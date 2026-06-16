@@ -4,12 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # 数据库配置
-    DB_HOST: str = "101.37.31.227"
+    # 数据库配置（阿里云 RDS）
+    DB_HOST: str = "rm-uf64bg6a84ot516wu9o.mysql.rds.aliyuncs.com"
     DB_PORT: int = 3306
-    DB_USER: str = "root"
-    DB_PASSWORD: str = ""
-    DB_NAME: str = "bird_watching"
+    DB_USER: str = "Tongji_114514"
+    DB_PASSWORD: str = "Tongji_114514"
+    DB_NAME: str = "bird_watcing"
 
     # JWT 配置
     JWT_SECRET_KEY: str = "bird-watching-secret-key-change-in-production"
@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
     ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif", "webp"}
+
+    # OSS 配置
+    OSS_ENDPOINT: str = "oss-cn-shanghai.aliyuncs.com"
+    OSS_BUCKET: str = "birdwing-cloud"
+    OSS_ACCESS_KEY_ID: str = ""
+    OSS_ACCESS_KEY_SECRET: str = ""
 
     # 服务器配置
     HOST: str = "0.0.0.0"
