@@ -87,7 +87,13 @@
         <div v-if="comments.length > 0" class="comments-list">
           <div v-for="c in comments" :key="c.id" class="comment-item">
             <div class="comment-avatar">
-              {{ c.user?.nickname?.charAt(0) || '匿' }}
+              <img
+                v-if="c.user?.avatar"
+                :src="resolveImageUrl(c.user.avatar)"
+                class="comment-avatar-img"
+                @error="e => e.target.style.display = 'none'"
+              />
+              <span v-if="!c.user?.avatar" class="comment-avatar-text">{{ c.user?.nickname?.charAt(0) || '匿' }}</span>
             </div>
             <div class="comment-body">
               <div class="comment-header">
@@ -481,7 +487,13 @@ onMounted(() => {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--color-primary-bg); color: var(--color-primary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700; flex-shrink: 0;
+  font-size: 14px; font-weight: 700; flex-shrink: 0; overflow: hidden;
+}
+.comment-avatar-img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.comment-avatar-text {
+  font-size: 14px; font-weight: 700;
 }
 .comment-body { flex: 1; min-width: 0; }
 .comment-header { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }

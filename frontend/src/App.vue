@@ -101,7 +101,7 @@ onUnmounted(() => {
 const navItems = [
   { path: '/', label: '首页', icon: '🏠' },
   { path: '/map', label: '地图', icon: '🗺️' },
-  { path: '/upload', label: '上传', icon: '📤' },
+  { path: '/upload', label: '识别', icon: '📤' },
   { path: '/encyclopedia', label: '图鉴', icon: '📚' },
   { path: '/ai-chat', label: 'AI问答', icon: '🤖', badge: 'AI' },
   { path: '/ranking', label: '排行榜', icon: '🏆' },
