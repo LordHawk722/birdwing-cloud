@@ -16,7 +16,15 @@
         </div>
         <div class="form-group">
           <label class="form-label">位置</label>
-          <input v-model="form.location" class="input-field" placeholder="如：上海世纪公园" maxlength="100" />
+          <div class="location-input-wrap">
+            <input ref="locationInput" v-model="form.location" class="input-field" placeholder="输入位置名称..." autocomplete="off" maxlength="100" @input="onLocationInput" />
+            <div v-if="locationSuggestions.length > 0" class="location-dropdown">
+              <div v-for="(s, i) in locationSuggestions" :key="i" class="location-item" @mousedown.prevent="selectLocation(s)">
+                <span class="loc-name">{{ s.name }}</span>
+                <span class="loc-addr">{{ s.address }}</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">图片</label>
@@ -39,11 +47,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, nextTick } from 'vue'
 import { chooseImages } from '@/utils/helpers.js'
 import { showToast } from '@/utils/toast.js'
 import PostService from '@/api/services/post.js'
 import UploadService from '@/api/services/upload.js'
+
+const BAIDU_MAP_KEY = import.meta.env.VITE_BAIDU_MAP_API_KEY || ''
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -54,15 +64,72 @@ const emit = defineEmits(['update:visible', 'created'])
 const submitting = ref(false)
 const errorMsg = ref('')
 const form = reactive({ title: '', content: '', location: '', imagePreview: '', imageFile: null })
+const locationInput = ref(null)
+const locationSuggestions = ref([])
+const locationConfirmed = ref('')
+let acInstance = null
 
 // 每次打开时重置表单
-watch(() => props.visible, (v) => {
+watch(() => props.visible, async (v) => {
   if (v) {
     form.title = ''; form.content = ''; form.location = ''
     form.imagePreview = ''; form.imageFile = null
     errorMsg.value = ''
+    locationSuggestions.value = []
+    locationConfirmed.value = ''
+    await loadBaiduMap()
+    await nextTick()
+    initAutocomplete()
   }
 })
+
+function loadBaiduMap() {
+  return new Promise((resolve) => {
+    if (window.BMap) { resolve(); return }
+    const script = document.createElement('script')
+    script.src = `https://api.map.baidu.com/api?v=2.0&ak=${BAIDU_MAP_KEY}&callback=onBaiduMapForModal`
+    window.onBaiduMapForModal = () => { resolve() }
+    document.head.appendChild(script)
+  })
+}
+
+function initAutocomplete() {
+  if (!window.BMap || !locationInput.value) return
+  if (acInstance) { acInstance.dispose(); acInstance = null }
+  acInstance = new BMap.Autocomplete({ input: locationInput.value, location: '全国' })
+  acInstance.addEventListener('onsearchcomplete', () => {
+    const r = acInstance.getResults()
+    if (r && r.getNumPois) {
+      const list = []
+      for (let i = 0; i < r.getNumPois(); i++) {
+        const poi = r.getPoi(i)
+        list.push({ name: poi.title || '', address: poi.address || '' })
+      }
+      locationSuggestions.value = list
+    } else { locationSuggestions.value = [] }
+  })
+  acInstance.addEventListener('onconfirm', (e) => {
+    const val = e.item.value
+    const parts = []
+    if (val.province) parts.push(val.province)
+    if (val.city) parts.push(val.city)
+    if (val.district) parts.push(val.district)
+    if (val.business) parts.push(val.business)
+    if (val.street) parts.push(val.street)
+    const selected = parts.join('') || val.business || e.item.value
+    form.location = selected
+    locationConfirmed.value = selected
+    locationSuggestions.value = []
+  })
+}
+
+function onLocationInput() { locationConfirmed.value = '' }
+
+function selectLocation(s) {
+  form.location = s.name
+  locationConfirmed.value = s.name
+  locationSuggestions.value = []
+}
 
 function cancel() {
   if (submitting.value) return
@@ -120,7 +187,7 @@ async function submit() {
   padding: 20px;
 }
 .create-post-modal {
-  width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+  width: 100%; max-width: 480px; max-height: 90vh;
   background: var(--color-surface); border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
 }
@@ -174,6 +241,23 @@ async function submit() {
   font-size: 14px; cursor: pointer; transition: all 0.2s;
 }
 .upload-image-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+/* 位置下拉 */
+.location-input-wrap { position: relative; }
+.location-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 1100;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  max-height: 200px; overflow-y: auto;
+}
+.location-item {
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+}
+.location-item:last-child { border-bottom: none; }
+.location-item:hover { background: var(--color-primary-bg); }
+.loc-name { font-size: 14px; font-weight: 600; color: var(--color-text); display: block; }
+.loc-addr { font-size: 12px; color: var(--color-text-muted); }
 
 @media (max-width: 768px) {
   .create-post-modal { max-height: 100vh; border-radius: 0; }
