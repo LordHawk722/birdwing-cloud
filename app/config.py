@@ -25,10 +25,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    # AI 识别配置（可选，默认使用模拟数据）
+    # AI 识别配置
     BAIDU_APP_ID: str = ""
     BAIDU_API_KEY: str = ""
     BAIDU_SECRET_KEY: str = ""
+    QWEN_API_KEY: str = ""
+    QWEN_MODEL: str = "qwen3.6-flash"
 
     # AI 聊天配置（OpenAI 兼容 API，默认使用 DeepSeek）
     AI_API_KEY: str = ""
