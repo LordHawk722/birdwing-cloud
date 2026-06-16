@@ -22,9 +22,9 @@
 
 ### 1.1 项目概述
 
-众翼云鉴是一个以鸟类识别与社区分享为核心的智能摄享平台。项目将原有微信小程序重构为 Web 应用，采用 Vue 3 + Vite 前端、Spring Boot 后端及 MySQL 数据库的技术栈，并集成 AI 鸟类识别、云存储与地图 API 等外部服务。
+众翼云鉴是一个以鸟类识别与社区分享为核心的智能摄享平台。项目将原有微信小程序重构为 Web 应用，采用 Vue 3 + Vite 前端、FastAPI (Python) 后端及 MySQL 数据库的技术栈，并集成 AI 鸟类识别（通义千问 Qwen 多模态模型）、AI 智能聊天（DeepSeek）、云存储（阿里云 OSS）与地图 API 等外部服务。
 
-**系统边界**：系统边界内包含 Vue 3 前端 Web 应用、Spring Boot 后端服务、MySQL 数据库。系统边界外包括终端用户（浏览器端）、AI 鸟类识别服务、阿里云 OSS 文件存储服务、地图 API 服务（高德/百度）、AI 聊天服务。
+**系统边界**：系统边界内包含 Vue 3 前端 Web 应用、FastAPI (Python) 后端服务、MySQL 数据库。系统边界外包括终端用户（浏览器端）、AI 鸟类识别服务（通义千问 Qwen 多模态模型）、阿里云 OSS 文件存储服务、地图 API 服务（高德/百度）、AI 聊天服务（DeepSeek）。
 
 ![系统边界图](./imgs/系统边界图.png)
 
@@ -92,7 +92,7 @@
 
 #### 1.3.4 可维护性要求
 
-- **模块化设计**：前端组件化（Vue 3 Composition API），后端模块化（Spring Boot 分层架构）
+- **模块化设计**：前端组件化（Vue 3 Composition API），后端模块化（FastAPI 分层架构，Router → Service → Model）
 - **编码规范**：统一代码风格，完善的注释与文档
 - **版本控制**：使用 Git 进行版本管理
 
@@ -115,8 +115,8 @@
 | 项目名称 | 众翼云鉴：智能鸟类摄享平台（微信小程序转 Web 应用重构） |
 | 项目目标 | 将微信小程序重构为功能完整的 Web 应用，提供鸟类识别、社区分享、百科查询一体化服务 |
 | 项目类型 | 新开发项目（New Development Project） |
-| 技术栈 | Vue 3 + Vite（前端）、Spring Boot（后端）、MySQL（数据库） |
-| 外部依赖 | AI 鸟类识别服务、阿里云 OSS、高德/百度地图 API、AI 聊天服务 |
+| 技术栈 | Vue 3 + Vite（前端）、FastAPI / Python（后端）、MySQL（数据库） |
+| 外部依赖 | AI 鸟类识别（通义千问 Qwen + 百度 AI 备用）、阿里云 OSS、高德/百度地图 API、AI 聊天（DeepSeek） |
 | 项目规模 | 调整后功能点 224 FP（IFPUG），NESMA 估算 232 FP |
 | 估算工作量 | 约 8.66 PM（GB/T 36964 口径）/ 约 19~28 人月（IFPUG Web 生产率口径） |
 | 团队规模 | 9~11 人（项目经理×1、产品经理×1、技术负责人×1、前端开发×2~3、后端开发×2、测试工程师×1~2、运维工程师×1、UI 设计师×1） |
@@ -159,7 +159,7 @@
 │   │   ├── 2.2.3 集成 UI 组件库（Element Plus / Ant Design Vue）
 │   │   └── 2.2.4 配置路由系统
 │   └── 2.3 后端接口适配
-│       ├── 2.3.1 评估现有 Spring Boot 接口
+│       ├── 2.3.1 评估现有后端接口
 │       ├── 2.3.2 设计 RESTful API 规范
 │       ├── 2.3.3 配置跨域 CORS
 │       └── 2.3.4 API 文档生成（Swagger）
@@ -550,7 +550,7 @@ steps: Setup Node.js → npm ci → npm run lint → npm run test:unit → npm r
 **后端 CI/CD**（GitHub Actions）：
 ```yaml
 on: push to main/develop
-steps: Setup JDK 11 → mvn clean package → mvn test → Docker build → Docker push → Kubernetes deploy
+steps: Setup Python → pip install -r requirements.txt → pytest → Docker build → Docker push → deploy
 ```
 
 **优化效果**：
