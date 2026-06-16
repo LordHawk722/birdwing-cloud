@@ -71,8 +71,6 @@
       </div>
     </div>
 
-    <CreatePostModal v-model:visible="showCreatePost" @created="loadAllData" />
-
     <!-- 编辑资料弹窗 -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="cancelEditProfile">
       <div class="edit-profile-modal">
@@ -112,7 +110,6 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import HomePoster from '@/components/HomePoster.vue'
-import CreatePostModal from '@/components/CreatePostModal.vue'
 import UserService from '@/api/services/user.js'
 import PostService from '@/api/services/post.js'
 import RecognitionService from '@/api/services/recognition.js'
@@ -131,9 +128,8 @@ function handleLogout() {
 }
 
 // ---- 发布动态 ----
-const showCreatePost = ref(false)
 function openCreatePost() {
-  showCreatePost.value = true
+  router.push('/upload')
 }
 
 // ---- 点击帖子 ----

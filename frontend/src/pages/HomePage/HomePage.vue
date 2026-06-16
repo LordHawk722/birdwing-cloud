@@ -123,7 +123,6 @@
       </aside>
     </div>
 
-    <CreatePostModal v-model:visible="showCreateModal" @created="loadPosts" />
   </div>
 </template>
 
@@ -131,7 +130,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import EnhancedPoster from '@/components/EnhancedPoster.vue'
-import CreatePostModal from '@/components/CreatePostModal.vue'
 
 import { showToast } from '@/utils/toast.js'
 import BirdApiService from '@/api/services/bird.js'
@@ -158,14 +156,12 @@ let tipTimer = null
 let searchTimer = null
 
 // ---- 发布动态 ----
-const showCreateModal = ref(false)
-
 function openCreatePost() {
   if (!auth.isAuthenticated.value) {
     router.push('/login')
     return
   }
-  showCreateModal.value = true
+  router.push('/upload')
 }
 
 const tips = [
