@@ -72,11 +72,24 @@ class TestBirdSearch:
         assert data["pagination"]["total"] == 0
 
     def test_search_empty_keyword(self, client, seed_birds):
-        """空关键词返回空"""
-        resp = client.get("/api/birds/search?keyword=")
+        """空关键词返回鸟类列表"""
+        resp = client.get("/api/birds/search?keyword=&page=1&page_size=3")
         assert resp.status_code == 200
         data = resp.json()["data"]
-        assert len(data["birds"]) == 0
+        assert len(data["birds"]) == 3
+        assert data["birds"][0]["name"] == "麻雀"
+        assert data["pagination"]["total"] == 5
+        assert data["pagination"]["total_pages"] == 2
+
+    def test_search_empty_keyword_does_not_increase_count(self, client, seed_birds):
+        """空关键词列表不计入搜索热度"""
+        resp = client.get("/api/birds/search?keyword=&page=1&page_size=1")
+        count_before = resp.json()["data"]["birds"][0]["search_count"]
+
+        resp = client.get("/api/birds/search?keyword=&page=1&page_size=1")
+        count_after = resp.json()["data"]["birds"][0]["search_count"]
+
+        assert count_after == count_before
 
     def test_search_increases_count(self, client, seed_birds):
         """搜索增加计数"""

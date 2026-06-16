@@ -141,7 +141,6 @@ import { useAuthStore } from '@/stores/auth.js'
 const router = useRouter()
 const auth = useAuthStore()
 
-const router = useRouter()
 const POSTS_CACHE_KEY = 'homepage_posts_cache'
 
 const searchText = ref('')

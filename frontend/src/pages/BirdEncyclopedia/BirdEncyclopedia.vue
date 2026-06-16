@@ -1,336 +1,608 @@
 <template>
-  <div class="encyclopedia-container">
-    <!-- 导航栏 -->
-    <div class="custom-navbar">
-      <div class="navbar-left" @click="goBack">
-        <span class="back-icon">←</span>
+  <main class="encyclopedia-page">
+    <header class="page-header">
+      <button class="back-btn" type="button" @click="router.back()">‹</button>
+      <div>
+        <h1>鸟类图鉴</h1>
+        <p>搜索鸟名、学名，或浏览热门鸟类卡片。</p>
       </div>
-      <span class="navbar-title">鸟类图鉴</span>
-      <div class="navbar-right">
-        <div class="mode-switch" :class="{ 'mode-switch-active': currentMode === 'general' }" @click="toggleMode">
-          <span class="mode-icon">{{ currentMode === 'search' ? '📖' : '🔍' }}</span>
-        </div>
+      <button class="mode-btn" type="button" @click="toggleMode">
+        {{ mode === 'search' ? '卡片' : '搜索' }}
+      </button>
+    </header>
+
+    <section class="search-panel">
+      <div class="search-box">
+        <span>⌕</span>
+        <input
+          v-model.trim="keyword"
+          type="search"
+          placeholder="输入鸟名或学名，如 麻雀 / Pica"
+          @input="handleInput"
+          @keyup.enter="searchBirds"
+        />
+        <button v-if="keyword" type="button" @click="clearSearch">清空</button>
       </div>
-    </div>
+      <div class="quick-tags">
+        <button v-for="tag in quickTags" :key="tag" type="button" @click="useQuickTag(tag)">{{ tag }}</button>
+      </div>
+    </section>
 
-    <!-- 搜索模式 -->
-    <div v-if="currentMode === 'search'" class="search-mode">
-      <div class="search-section">
-        <div class="search-input-wrapper">
-          <span class="search-icon">🔍</span>
-          <input type="text" placeholder="搜索鸟类名称或特征..." v-model="searchKeyword" @input="onSearchInput" @keyup.enter="handleSearchConfirm" class="search-input" />
-          <div v-if="searchKeyword" class="clear-btn" @click="clearSearch">
-            <span class="clear-icon">×</span>
-          </div>
-        </div>
+    <section v-if="mode === 'search'" class="results-section">
+      <div class="section-head">
+        <h2>{{ keyword ? '搜索结果' : '热门鸟类' }}</h2>
+        <span v-if="!loading">{{ activeList.length }} 条</span>
       </div>
 
-      <div class="search-results">
-        <div v-if="isSearching" class="loading-container">
-          <div class="loading-spinner"></div>
-          <span class="loading-text">搜索中...</span>
-        </div>
+      <div v-if="loading" class="grid">
+        <div v-for="i in 6" :key="i" class="skeleton result-skeleton"></div>
+      </div>
 
-        <div v-else-if="searchResults.length > 0" class="results-grid">
-          <div v-for="(bird, index) in searchResults" :key="bird.id" class="result-card" @click="selectBird(bird)" :style="{ animationDelay: `${index * 0.1}s` }">
-            <img :src="getOSSUrl(bird.imageUrl, 'medium')" class="result-image" alt="鸟类图片" />
-            <div class="result-content">
-              <span class="result-name">{{ bird.name }}</span>
-              <span class="result-scientific">{{ bird.scientificName }}</span>
-              <div class="result-tags">
-                <span v-for="tag in bird.tags" :key="tag" class="result-tag">{{ tag }}</span>
-              </div>
+      <div v-else-if="errorMsg" class="state-box">
+        <strong>加载失败</strong>
+        <p>{{ errorMsg }}</p>
+        <button class="btn btn-primary" type="button" @click="loadInitialBirds">重试</button>
+      </div>
+
+      <div v-else-if="activeList.length" class="grid">
+        <article v-for="bird in activeList" :key="bird.id" class="bird-tile" @click="openBird(bird)">
+          <img :src="getBirdImage(bird)" :alt="bird.name" @error="onTileImageError" />
+          <div class="tile-body">
+            <h3>{{ bird.name }}</h3>
+            <p class="latin">{{ bird.scientificName || '学名待补充' }}</p>
+            <p>{{ bird.description || '暂无简介' }}</p>
+            <div class="tile-tags">
+              <span v-for="tag in bird.tags" :key="tag">{{ tag }}</span>
             </div>
           </div>
-        </div>
-
-        <div v-else-if="searchKeyword && !isSearching" class="no-results">
-          <span class="no-results-icon">🔍</span>
-          <span class="no-results-text">未找到相关鸟类</span>
-          <span class="no-results-subtitle">尝试搜索其他关键词</span>
-        </div>
-
-        <div v-else class="search-placeholder">
-          <span class="placeholder-icon">📚</span>
-          <span class="placeholder-text">输入鸟类名称开始搜索</span>
-          <span class="placeholder-subtitle">支持中文名、英文名或特征描述</span>
-        </div>
+        </article>
       </div>
-    </div>
 
-    <!-- 通识模式 - 卡片翻阅 -->
-    <div v-else class="general-mode">
-      <div class="progress-indicator">
-        <span class="progress-text">{{ currentDisplayPage }} / {{ safeTotalCards }}</span>
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: `${safeTotalCards > 0 ? (currentDisplayPage / safeTotalCards) * 100 : 0}%` }"></div>
+      <div v-else class="state-box">
+        <strong>没有找到相关鸟类</strong>
+        <p>换一个中文名、学名或更短的关键词试试。</p>
+      </div>
+    </section>
+
+    <section v-else class="card-section">
+      <div class="card-toolbar">
+        <div>
+          <strong>{{ currentIndex + 1 }}</strong>
+          <span>/ {{ cards.length }}</span>
+        </div>
+        <div class="progress">
+          <i :style="{ width: `${progressPercent}%` }"></i>
         </div>
       </div>
 
-      <div class="card-stack-container" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
-        <div class="card-stack">
-          <div v-if="safeCurrentIndex < safeTotalCards - 1 && safeTotalCards > 1" class="card-item background-card" :style="backgroundCardStyle">
-            <BirdKnowledgeCard :bird-data="birdCards[safeCurrentIndex + 1]" :is-active="false" @like="onCardLike" @share="onCardShare" />
-          </div>
-          <div v-if="safeTotalCards > 0 && birdCards[safeCurrentIndex]" class="card-item current-card" :style="currentCardStyle" :class="{ 'card-flipping': isFlipping }">
-            <BirdKnowledgeCard :bird-data="birdCards[safeCurrentIndex]" :is-active="true" @like="onCardLike" @share="onCardShare" />
-          </div>
+      <div class="card-stage" @touchstart="onTouchStart" @touchend="onTouchEnd">
+        <BirdKnowledgeCard
+          v-if="currentBird"
+          :bird-data="currentBird"
+          :is-active="true"
+          @like="onLike"
+          @share="shareBird"
+        />
+        <div v-else class="state-box">
+          <strong>暂无图鉴数据</strong>
+          <p>请稍后重试。</p>
         </div>
       </div>
 
-      <div class="bottom-actions">
-        <div class="action-button prev-btn" :class="{ 'btn-disabled': !canGoPrevious }" @click="previousCard">
-          <span>←</span><span class="action-text">上一张</span>
-        </div>
-        <div class="card-counter">
-          <span class="counter-text">{{ currentDisplayPage }}</span>
-          <span class="counter-divider">/</span>
-          <span class="counter-total">{{ safeTotalCards }}</span>
-        </div>
-        <div class="action-button next-btn" :class="{ 'btn-disabled': !canGoNext }" @click="nextCard">
-          <span class="action-text">下一张</span><span>→</span>
-        </div>
+      <div class="card-actions">
+        <button type="button" :disabled="currentIndex === 0" @click="previousCard">上一张</button>
+        <button type="button" @click="mode = 'search'">返回列表</button>
+        <button type="button" :disabled="currentIndex >= cards.length - 1" @click="nextCard">下一张</button>
       </div>
-    </div>
-  </div>
+    </section>
+  </main>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BirdKnowledgeCard from '@/components/BirdKnowledgeCard.vue'
+import BirdApiService from '@/api/services/bird.js'
 import { getOSSUrl } from '@/config/oss.js'
 import { showToast } from '@/utils/toast.js'
 import { vibrate } from '@/utils/helpers.js'
-import BirdApiService from '@/api/services/bird.js'
 
 const router = useRouter()
-const currentMode = ref('search')
-const searchKeyword = ref('')
-const isSearching = ref(false)
+const mode = ref('search')
+const keyword = ref('')
+const loading = ref(false)
+const errorMsg = ref('')
 const searchResults = ref([])
-const currentCardIndex = ref(0)
-const birdCards = ref([])
+const cards = ref([])
+const currentIndex = ref(0)
+const touchStartX = ref(0)
+let searchTimer = null
 
-const isFlipping = ref(false)
-const touchStartY = ref(0)
-const touchCurrentY = ref(0)
-const cardTranslateY = ref(0)
-const cardOpacity = ref(1)
-const cardScale = ref(1)
-const backgroundCardScale = ref(0.95)
-const backgroundCardOpacity = ref(0.7)
+const quickTags = ['麻雀', '喜鹊', '翠鸟', '白鹭', '孔雀']
 
-const mockBirdData = [
-  { id: 1, name: '巨嘴鸟', scientificName: 'Ramphastos sulfuratus', imageUrl: 'static/birds/toucan.jpg', tags: ['热带鸟类', '彩色', '大型'], habitat: '热带雨林', size: '体长50-65cm', weight: '500-860克', wingspan: '109-152cm', diet: '主要以果实为食，偶尔捕食小型动物', behavior: '群居性鸟类，善于飞行和攀爬', distribution: '中美洲和南美洲的热带雨林', conservationStatus: '无危', characteristics: ['拥有巨大而彩色的喙', '羽毛色彩鲜艳', '飞行能力强', '社交性强'], funFacts: ['巨嘴鸟的大喙实际上很轻，内部充满了气囊', '它们的喙可以占到身体长度的1/3', '巨嘴鸟睡觉时会将喙折叠到背上'], callDescription: '发出低沉的咕咕声和尖锐的叫声', lifespan: '野外约15-20年' },
-  { id: 2, name: '蜂鸟', scientificName: 'Trochilidae', imageUrl: 'static/birds/hummingbird.jpg', tags: ['小型鸟类', '快速', '悬停'], habitat: '花园、森林边缘', size: '体长5-25cm', weight: '2-20克', wingspan: '5-25cm', diet: '花蜜、小昆虫', behavior: '能够悬停飞行，翅膀拍打频率极高', distribution: '南北美洲', conservationStatus: '大多数种类稳定', characteristics: ['世界上最小的鸟类', '能够悬停和倒飞', '心跳频率极快', '新陈代谢旺盛'], funFacts: ['蜂鸟的翅膀每秒可拍打80次', '它们的心跳每分钟可达1260次', '蜂鸟可以倒着飞行'], callDescription: '发出细小的吱吱声', lifespan: '野外约3-5年' },
-  { id: 3, name: '孔雀', scientificName: 'Pavo cristatus', imageUrl: 'static/birds/peacock.jpg', tags: ['大型鸟类', '华丽', '地栖'], habitat: '森林、公园、农田', size: '体长100-115cm', weight: '4-6公斤', wingspan: '120-160cm', diet: '种子、昆虫、小型爬行动物', behavior: '雄鸟会展开尾羽进行求偶炫耀', distribution: '南亚、东南亚', conservationStatus: '无危', characteristics: ['雄鸟有华丽的尾羽', '能够短距离飞行', '叫声洪亮', '具有强烈的领域性'], funFacts: ['孔雀的尾羽可以长达1.5米', '尾羽上的眼斑叫做"眼状斑"', '孔雀实际上可以飞行，但不擅长长距离飞行'], callDescription: '发出尖锐的叫声，特别是在求偶季节', lifespan: '野外约15-20年' },
-  { id: 4, name: '老鹰', scientificName: 'Aquila chrysaetos', imageUrl: 'static/birds/eagle.jpg', tags: ['猛禽', '大型', '捕食者'], habitat: '山地、草原、森林', size: '体长75-100cm', weight: '3-7公斤', wingspan: '180-280cm', diet: '小型哺乳动物、鸟类、鱼类', behavior: '优秀的猎手，视力极佳', distribution: '全球各大洲（除南极洲）', conservationStatus: '部分种类濒危', characteristics: ['视力是人类的8倍', '强有力的爪子和喙', '飞行能力极强', '领域性强'], funFacts: ['老鹰可以从3公里外发现猎物', '它们的俯冲速度可达每小时300公里', '老鹰可以活到30岁以上'], callDescription: '发出尖锐的啸叫声', lifespan: '野外约20-30年' }
+const fallbackBirds = [
+  {
+    id: 'local-1',
+    name: '麻雀',
+    scientificName: 'Passer montanus',
+    region: '全国广泛分布',
+    behavior: '群居，适应力强，常见于城市和乡村',
+    description: '麻雀是城市中最常见的小型鸟类之一，常在建筑物周边、灌木和农田活动。',
+    imageUrl: '',
+    searchCount: 1520,
+  },
+  {
+    id: 'local-2',
+    name: '喜鹊',
+    scientificName: 'Pica pica',
+    region: '全国广泛分布',
+    behavior: '留鸟，常成对或小群活动',
+    description: '喜鹊黑白分明，尾羽较长，叫声响亮，是很多人熟悉的城市鸟类。',
+    imageUrl: '',
+    searchCount: 1280,
+  },
+  {
+    id: 'local-3',
+    name: '翠鸟',
+    scientificName: 'Alcedo atthis',
+    region: '南方水域常见',
+    behavior: '栖息于水边，俯冲捕鱼',
+    description: '翠鸟羽色鲜亮，常停在水边枝条上等待小鱼靠近。',
+    imageUrl: '',
+    searchCount: 620,
+  },
 ]
 
-const safeCurrentIndex = computed(() => {
-  const index = parseInt(currentCardIndex.value) || 0
-  const total = parseInt(birdCards.value.length) || 0
-  if (total === 0) return 0
-  return Math.max(0, Math.min(index, total - 1))
+const activeList = computed(() => keyword.value ? searchResults.value : cards.value)
+const currentBird = computed(() => cards.value[currentIndex.value])
+const progressPercent = computed(() => {
+  if (!cards.value.length) return 0
+  return ((currentIndex.value + 1) / cards.value.length) * 100
 })
-const safeTotalCards = computed(() => parseInt(birdCards.value.length) || 0)
-const currentDisplayPage = computed(() => safeCurrentIndex.value + 1)
-const canGoPrevious = computed(() => safeCurrentIndex.value > 0 && !isFlipping.value && safeTotalCards.value > 0)
-const canGoNext = computed(() => safeCurrentIndex.value < safeTotalCards.value - 1 && !isFlipping.value && safeTotalCards.value > 0)
-const currentCardStyle = computed(() => ({ transform: `translateY(${cardTranslateY.value}px) scale(${cardScale.value})`, opacity: cardOpacity.value, zIndex: 10 }))
-const backgroundCardStyle = computed(() => ({ transform: `scale(${backgroundCardScale.value})`, opacity: backgroundCardOpacity.value, zIndex: 5 }))
 
-const onTouchStart = (event) => {
-  if (isFlipping.value) return
-  touchStartY.value = event.touches[0].clientY
-  touchCurrentY.value = event.touches[0].clientY
-}
-const onTouchMove = (event) => {
-  if (isFlipping.value || birdCards.value.length === 0) return
-  touchCurrentY.value = event.touches[0].clientY
-  const deltaY = touchCurrentY.value - touchStartY.value
-  if (deltaY < 0 && currentCardIndex.value < birdCards.value.length - 1) {
-    const progress = Math.min(Math.abs(deltaY) / 200, 1)
-    cardTranslateY.value = deltaY
-    cardOpacity.value = 1 - progress * 0.7
-    cardScale.value = 1 - progress * 0.1
-    backgroundCardScale.value = 0.95 + progress * 0.05
-    backgroundCardOpacity.value = 0.7 + progress * 0.3
-  }
-}
-const onTouchEnd = () => {
-  if (isFlipping.value || birdCards.value.length === 0) return
-  const deltaY = touchCurrentY.value - touchStartY.value
-  if (deltaY < -100 && currentCardIndex.value < birdCards.value.length - 1) {
-    nextCard()
-  } else {
-    resetCardPosition()
-  }
-}
-const resetCardPosition = () => {
-  cardTranslateY.value = 0; cardOpacity.value = 1; cardScale.value = 1
-  backgroundCardScale.value = 0.95; backgroundCardOpacity.value = 0.7
-}
-
-const goBack = () => router.back()
-
-const toggleMode = () => {
-  currentMode.value = currentMode.value === 'search' ? 'general' : 'search'
-  vibrate('short')
-  if (currentMode.value === 'general' && birdCards.value.length === 0) initGeneralMode()
-}
-
-const onSearchInput = () => {
-  if (searchKeyword.value.trim()) performSearch()
-  else searchResults.value = []
-}
-const handleSearchConfirm = () => { if (searchKeyword.value.trim()) performSearch() }
-const clearSearch = () => { searchKeyword.value = ''; searchResults.value = [] }
-
-const selectBird = (bird) => {
-  currentMode.value = 'general'
-  const index = birdCards.value.findIndex(card => card.id === bird.id)
-  if (index !== -1) currentCardIndex.value = index
-  searchKeyword.value = ''; searchResults.value = []
-  resetCardPosition()
-}
-
-const previousCard = () => {
-  const idx = parseInt(currentCardIndex.value) || 0
-  if (idx > 0 && !isFlipping.value && birdCards.value.length > 0) {
-    isFlipping.value = true
-    cardTranslateY.value = 50; cardOpacity.value = 0
-    setTimeout(() => { currentCardIndex.value = Math.max(0, idx - 1); resetCardPosition(); isFlipping.value = false }, 300)
+function normalizeBird(raw) {
+  const region = raw.region || ''
+  const habits = raw.habits || raw.behavior || ''
+  return {
+    id: raw.id,
+    name: raw.name || '未知鸟类',
+    scientificName: raw.latin_name || raw.scientificName || '',
+    region,
+    distribution: region,
+    behavior: habits,
+    description: raw.description || '',
+    imageUrl: raw.image_url || raw.imageUrl || '',
+    searchCount: raw.search_count ?? raw.searchCount ?? 0,
+    conservationStatus: raw.conservationStatus || '常见记录',
+    tags: [region, habits].filter(Boolean).slice(0, 3),
   }
 }
 
-const nextCard = () => {
-  const idx = parseInt(currentCardIndex.value) || 0
-  const total = parseInt(birdCards.value.length) || 0
-  if (idx < total - 1 && !isFlipping.value && total > 0) {
-    isFlipping.value = true
-    cardTranslateY.value = -200; cardOpacity.value = 0; cardScale.value = 0.8
-    setTimeout(() => { currentCardIndex.value = Math.min(total - 1, idx + 1); resetCardPosition(); isFlipping.value = false }, 300)
-    vibrate('short')
-  }
+function getBirdImage(bird) {
+  if (!bird.imageUrl) return placeholderImage()
+  return getOSSUrl(bird.imageUrl, 'medium')
 }
 
-const onCardLike = () => { showToast('已收藏', 'success') }
-const onCardShare = (bird) => {
-  if (navigator.share) {
-    navigator.share({ title: `鸟类：${bird.name}`, text: `${bird.name} (${bird.scientificName})`, url: window.location.href }).catch(() => {})
-  } else {
-    showToast('已复制链接', 'success')
-  }
+function placeholderImage() {
+  return 'data:image/svg+xml,' + encodeURIComponent('<svg width="300" height="220" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="220" fill="#ecfdf5"/><text x="150" y="116" text-anchor="middle" fill="#047857" font-size="18" font-family="Arial">暂无图片</text></svg>')
 }
 
-const performSearch = async () => {
-  isSearching.value = true
+function onTileImageError(event) {
+  event.target.src = placeholderImage()
+}
+
+async function loadInitialBirds() {
+  loading.value = true
+  errorMsg.value = ''
   try {
-    const res = await BirdApiService.searchBirds(searchKeyword.value.trim(), 1, 20)
-    const birds = res.data?.data?.birds || []
-    searchResults.value = birds.map(b => ({
-      id: b.id,
-      name: b.name,
-      scientificName: b.latin_name || '',
-      imageUrl: b.image_url || '',
-      tags: [b.region, b.habits].filter(Boolean).slice(0, 3),
-    }))
-  } catch {
-    // API 失败时回退到本地 mock 搜索
-    const keyword = searchKeyword.value.toLowerCase()
-    searchResults.value = mockBirdData.filter(b =>
-      b.name.toLowerCase().includes(keyword) ||
-      b.scientificName.toLowerCase().includes(keyword) ||
-      b.tags.some(t => t.includes(keyword)) ||
-      b.habitat.includes(keyword)
-    )
-  } finally { isSearching.value = false }
+    const res = await BirdApiService.getRankings(50)
+    const birds = res.data?.data || []
+    cards.value = birds.length ? birds.map(normalizeBird) : fallbackBirds.map(normalizeBird)
+  } catch (err) {
+    cards.value = fallbackBirds.map(normalizeBird)
+    errorMsg.value = ''
+  } finally {
+    loading.value = false
+  }
 }
 
-const initGeneralMode = () => { birdCards.value = [...mockBirdData]; currentCardIndex.value = 0; resetCardPosition() }
-const loadBirdData = async () => { birdCards.value = [...mockBirdData] }
+async function searchBirds() {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    const res = await BirdApiService.searchBirds(keyword.value, 1, 30)
+    const birds = (res.data?.data?.birds || []).map(normalizeBird)
+    if (keyword.value) {
+      searchResults.value = birds
+    } else {
+      cards.value = birds.length ? birds : cards.value
+      searchResults.value = []
+    }
+  } catch (err) {
+    if (!keyword.value) {
+      searchResults.value = []
+      return
+    }
+    const lower = keyword.value.toLowerCase()
+    searchResults.value = cards.value.filter((bird) =>
+      [bird.name, bird.scientificName, bird.region, bird.behavior, bird.description]
+        .some((value) => String(value || '').toLowerCase().includes(lower))
+    )
+  } finally {
+    loading.value = false
+  }
+}
 
-watch([birdCards, currentCardIndex], ([cards, idx]) => {
-  const total = parseInt(cards.length) || 0
-  const index = parseInt(idx) || 0
-  if (total > 0) {
-    const valid = Math.max(0, Math.min(index, total - 1))
-    if (valid !== index) currentCardIndex.value = valid
-  } else { currentCardIndex.value = 0 }
-})
+function handleInput() {
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(searchBirds, 300)
+}
 
-onMounted(async () => {
-  await loadBirdData()
-  resetCardPosition()
-})
+function clearSearch() {
+  keyword.value = ''
+  searchResults.value = []
+  searchBirds()
+}
+
+function useQuickTag(tag) {
+  keyword.value = tag
+  searchBirds()
+}
+
+function openBird(bird) {
+  const index = cards.value.findIndex((item) => item.id === bird.id)
+  if (index >= 0) {
+    currentIndex.value = index
+  } else {
+    cards.value = [bird, ...cards.value]
+    currentIndex.value = 0
+  }
+  mode.value = 'cards'
+}
+
+function toggleMode() {
+  mode.value = mode.value === 'search' ? 'cards' : 'search'
+  vibrate('short')
+}
+
+function previousCard() {
+  if (currentIndex.value > 0) currentIndex.value -= 1
+}
+
+function nextCard() {
+  if (currentIndex.value < cards.value.length - 1) currentIndex.value += 1
+}
+
+function onTouchStart(event) {
+  touchStartX.value = event.touches[0].clientX
+}
+
+function onTouchEnd(event) {
+  const delta = event.changedTouches[0].clientX - touchStartX.value
+  if (Math.abs(delta) < 60) return
+  if (delta < 0) nextCard()
+  else previousCard()
+}
+
+function onLike() {
+  showToast('已收藏到本地偏好', 'success')
+}
+
+function shareBird(bird) {
+  const text = `${bird.name}${bird.scientificName ? ` (${bird.scientificName})` : ''}`
+  if (navigator.share) {
+    navigator.share({ title: '鸟类图鉴', text, url: window.location.href }).catch(() => {})
+    return
+  }
+  navigator.clipboard?.writeText(`${text} ${window.location.href}`)
+  showToast('已复制分享信息', 'success')
+}
+
+onMounted(loadInitialBirds)
 </script>
 
 <style scoped>
-.encyclopedia-container { min-height: 100vh; background: linear-gradient(180deg, #f8fffe, #ffffff); }
-.custom-navbar { height: 44px; background: linear-gradient(135deg, #4caf50, #43a047); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 100; box-shadow: 0 1px 8px rgba(76,175,80,0.2); }
-.navbar-left, .navbar-right { width: 40px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.back-icon { font-size: 18px; color: white; }
-.navbar-title { font-size: 16px; font-weight: 600; color: white; }
-.mode-switch { width: 30px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-.mode-switch:hover { background: rgba(255,255,255,0.3); }
-.mode-switch-active { background: rgba(255,255,255,0.3); }
-.mode-icon { font-size: 16px; }
+.encyclopedia-page {
+  width: min(1120px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 22px 20px 96px;
+}
 
-.search-mode { padding: 12px 16px; }
-.search-section { margin-bottom: 16px; }
-.search-input-wrapper { display: flex; align-items: center; height: 44px; background: white; border-radius: 22px; padding: 0 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 1px solid #f0f0f0; }
-.search-input-wrapper:focus-within { border-color: #4caf50; box-shadow: 0 2px 12px rgba(76,175,80,0.15); }
-.search-icon { font-size: 16px; margin-right: 8px; opacity: 0.6; }
-.search-input { flex: 1; font-size: 14px; color: #333; border: none; outline: none; background: transparent; }
-.clear-btn { width: 24px; height: 24px; background: rgba(0,0,0,0.05); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.page-header {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
 
-.loading-container { display: flex; flex-direction: column; align-items: center; padding: 60px 0; }
-.loading-spinner { width: 30px; height: 30px; border: 2px solid #e0e0e0; border-top-color: #4caf50; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-text { font-size: 14px; color: #666; }
+.back-btn,
+.mode-btn {
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
 
-.results-grid { display: flex; flex-direction: column; gap: 10px; }
-.result-card { display: flex; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); cursor: pointer; transition: all 0.2s; animation: slideInUp 0.5s ease both; }
-.result-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-@keyframes slideInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-.result-image { width: 100px; height: 100px; object-fit: cover; flex-shrink: 0; }
-.result-content { padding: 12px; flex: 1; }
-.result-name { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 4px; display: block; }
-.result-scientific { font-size: 12px; color: #666; font-style: italic; margin-bottom: 6px; display: block; }
-.result-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.result-tag { background: rgba(76,175,80,0.1); color: #4caf50; padding: 2px 6px; border-radius: 6px; font-size: 10px; }
+.back-btn {
+  font-size: 28px;
+  line-height: 1;
+}
 
-.no-results, .search-placeholder { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; text-align: center; }
-.no-results-icon, .placeholder-icon { font-size: 60px; margin-bottom: 12px; opacity: 0.5; }
-.no-results-text, .placeholder-text { font-size: 14px; color: #666; font-weight: 500; margin-bottom: 4px; }
-.no-results-subtitle, .placeholder-subtitle { font-size: 12px; color: #999; }
+.mode-btn {
+  padding: 0 16px;
+  font-weight: 700;
+}
 
-.general-mode { display: flex; flex-direction: column; height: calc(100vh - 44px); }
-.progress-indicator { padding: 10px 16px; background: white; }
-.progress-text { font-size: 12px; color: #666; text-align: center; margin-bottom: 6px; display: block; }
-.progress-bar { height: 3px; background: #f0f0f0; border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #66bb6a); border-radius: 2px; transition: width 0.3s ease; }
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  color: var(--color-text);
+}
 
-.card-stack-container { flex: 1; position: relative; padding: 10px 16px; margin-bottom: 10px; }
-.card-stack { position: relative; width: 100%; height: 100%; }
-.card-item { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 16px; transition: all 0.3s ease; }
-.current-card { z-index: 10; }
-.background-card { z-index: 5; filter: blur(1px); }
+.page-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
 
-.bottom-actions { height: 60px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-top: 1px solid #f0f0f0; box-shadow: 0 -1px 5px rgba(0,0,0,0.05); }
-.action-button { display: flex; align-items: center; gap: 4px; padding: 8px 12px; background: rgba(76,175,80,0.1); border-radius: 12px; cursor: pointer; transition: all 0.2s; }
-.action-button:hover:not(.btn-disabled) { background: rgba(76,175,80,0.2); transform: scale(1.05); }
-.action-button.btn-disabled { opacity: 0.3; cursor: not-allowed; }
-.action-text { font-size: 12px; color: #4caf50; font-weight: 500; }
-.card-counter { display: flex; align-items: center; gap: 4px; }
-.counter-text { font-size: 18px; font-weight: 600; color: #4caf50; }
-.counter-divider { color: #ddd; }
-.counter-total { font-size: 18px; font-weight: 600; color: #333; }
+.search-panel {
+  margin-bottom: 18px;
+}
 
-@media screen and (max-width: 375px) {
-  .card-stack-container { padding: 8px 12px; }
-  .bottom-actions { padding: 0 16px; }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-box span {
+  color: var(--color-primary);
+  font-size: 24px;
+}
+
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.search-box button,
+.quick-tags button {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-full);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.section-head span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.bird-tile {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.bird-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.bird-tile img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  background: var(--color-primary-bg);
+}
+
+.tile-body {
+  padding: 14px;
+}
+
+.tile-body h3 {
+  margin: 0 0 3px;
+  font-size: 17px;
+}
+
+.latin {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.tile-body p:not(.latin) {
+  display: -webkit-box;
+  min-height: 40px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.tile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.tile-tags span {
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.result-skeleton {
+  height: 292px;
+}
+
+.state-box {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 240px;
+  padding: 32px;
+  text-align: center;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.state-box p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.card-section {
+  display: grid;
+  gap: 14px;
+}
+
+.card-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  color: var(--color-text-secondary);
+}
+
+.card-toolbar strong {
+  color: var(--color-primary);
+  font-size: 20px;
+}
+
+.progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--transition-normal);
+}
+
+.card-stage {
+  height: min(680px, calc(100vh - 260px));
+  min-height: 520px;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.card-actions button {
+  height: 44px;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  font-weight: 800;
+}
+
+.card-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .encyclopedia-page {
+    padding: 14px 12px 84px;
+  }
+
+  .page-header {
+    grid-template-columns: 40px 1fr auto;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+  }
+
+  .page-header p {
+    display: none;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bird-tile {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+  }
+
+  .bird-tile img {
+    height: 100%;
+    min-height: 142px;
+  }
+
+  .card-stage {
+    height: calc(100vh - 240px);
+    min-height: 480px;
+  }
 }
 </style>
