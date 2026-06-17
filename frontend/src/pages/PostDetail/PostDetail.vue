@@ -257,9 +257,36 @@ async function handleLike() {
 }
 
 function handleShare() {
-  showActionSheet(['分享链接', '举报']).then(i => {
-    if (i >= 0) showToast('已处理', 'success')
-  })
+  const url = `${window.location.origin}/post/${post.value.id}`
+  const title = post.value.title || '分享帖子'
+  // 手机：原生分享
+  if (navigator.share) {
+    navigator.share({ title, url }).catch(() => {})
+    return
+  }
+  // HTTPS / localhost：Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('链接已复制到剪贴板', 'success')
+    }).catch(() => {
+      showToast('复制失败，请手动复制链接', 'error')
+    })
+    return
+  }
+  // HTTP 环境：降级用 textarea + execCommand
+  const textarea = document.createElement('textarea')
+  textarea.value = url
+  textarea.style.position = 'fixed'; textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    document.execCommand('copy')
+    showToast('链接已复制到剪贴板', 'success')
+  } catch {
+    showToast('复制失败，请手动复制链接', 'error')
+  } finally {
+    document.body.removeChild(textarea)
+  }
 }
 
 async function submitComment() {
