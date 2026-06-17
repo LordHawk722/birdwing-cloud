@@ -44,11 +44,6 @@
           <span v-for="tag in birdData.tags" :key="tag">{{ tag }}</span>
         </div>
       </section>
-
-      <div class="actions">
-        <button class="secondary-btn" type="button" @click.stop="emit('share', birdData)">分享</button>
-        <button class="primary-btn" type="button" @click.stop="playBirdCall">鸟鸣示例</button>
-      </div>
     </div>
   </article>
 </template>
@@ -64,7 +59,7 @@ const props = defineProps({
   isActive: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['like', 'share'])
+const emit = defineEmits(['like'])
 const isLiked = ref(false)
 const imageFailed = ref(false)
 
@@ -94,11 +89,6 @@ function onImageError() {
 function handleLike() {
   isLiked.value = !isLiked.value
   emit('like', props.birdData)
-  vibrate('short')
-}
-
-function playBirdCall() {
-  showToast('鸟鸣音频功能待接入', 'none')
   vibrate('short')
 }
 </script>
@@ -239,30 +229,6 @@ section p {
   font-weight: 600;
 }
 
-.actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.primary-btn,
-.secondary-btn {
-  flex: 1;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.primary-btn {
-  color: #fff;
-  background: var(--color-primary);
-}
-
-.secondary-btn {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
-}
 
 @media (max-width: 640px) {
   .cover {

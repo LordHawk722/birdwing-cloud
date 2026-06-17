@@ -103,6 +103,7 @@ import { showToast, showModal } from '@/utils/toast.js'
 import { chooseImages } from '@/utils/helpers.js'
 import RecognitionService from '@/api/services/recognition.js'
 import PostService from '@/api/services/post.js'
+import UploadService from '@/api/services/upload.js'
 
 const router = useRouter()
 const BAIDU_MAP_KEY = import.meta.env.VITE_BAIDU_MAP_API_KEY || ''
@@ -259,6 +260,11 @@ async function submitPost() {
   submitting.value = true
   postError.value = ''
   try {
+    // 如果有图片但还没上传（未走识别流程），先上传图片
+    if (!serverImageUrl.value && imageFile.value) {
+      const res = await UploadService.uploadImage(imageFile.value)
+      serverImageUrl.value = res.data?.data?.url || ''
+    }
     await PostService.createPost({
       title: postForm.value.title.trim(),
       content: postForm.value.content.trim(),

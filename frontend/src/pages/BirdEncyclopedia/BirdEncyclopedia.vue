@@ -81,7 +81,6 @@
           :bird-data="currentBird"
           :is-active="true"
           @like="onLike"
-          @share="shareBird"
         />
         <div v-else class="state-box">
           <strong>暂无图鉴数据</strong>
@@ -286,16 +285,6 @@ function onTouchEnd(event) {
 
 function onLike() {
   showToast('已收藏到本地偏好', 'success')
-}
-
-function shareBird(bird) {
-  const text = `${bird.name}${bird.scientificName ? ` (${bird.scientificName})` : ''}`
-  if (navigator.share) {
-    navigator.share({ title: '鸟类图鉴', text, url: window.location.href }).catch(() => {})
-    return
-  }
-  navigator.clipboard?.writeText(`${text} ${window.location.href}`)
-  showToast('已复制分享信息', 'success')
 }
 
 onMounted(loadInitialBirds)
