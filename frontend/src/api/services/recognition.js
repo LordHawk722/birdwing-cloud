@@ -16,7 +16,7 @@ export class RecognitionService {
     formData.append('file', file)
     return request.post(API_ENDPOINTS.RECOGNITION.ANALYZE_WITH_IMAGE, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 30000,
+      timeout: 120000,
       onUploadProgress: onProgress
         ? (e) => onProgress(Math.round((e.loaded / e.total) * 100))
         : undefined,

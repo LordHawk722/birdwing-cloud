@@ -30,11 +30,13 @@
       <!-- 作者信息 -->
       <div class="post-author">
         <img
-          :src="post.author?.avatar || ''"
+          v-if="post.author?.avatar"
+          :src="post.author.avatar"
           class="author-avatar"
           alt=""
           @error="($event.target).style.display='none'"
         />
+        <span v-else class="author-avatar author-avatar-text">{{ post.author?.nickname?.charAt(0) || '用' }}</span>
         <div class="author-info">
           <div class="author-name">{{ post.author?.nickname || '匿名用户' }}</div>
           <div class="post-time">{{ formatTime(post.created_at) }}</div>
@@ -438,7 +440,12 @@ onMounted(() => {
 }
 .author-avatar {
   width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--color-border); flex-shrink: 0;
+}
+.author-avatar-text {
+  background: var(--color-primary-bg); color: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; border: none;
 }
 .author-info { flex: 1; }
 .author-name { font-size: 15px; font-weight: 600; color: var(--color-text); }

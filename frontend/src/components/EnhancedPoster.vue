@@ -10,7 +10,8 @@
 
     <div class="card-body">
       <div class="card-author">
-        <img :src="authorAvatarUrl" class="author-avatar" alt="" />
+        <img v-if="posterData.author?.avatar" :src="authorAvatarUrl" class="author-avatar" alt="" />
+        <span v-else class="author-avatar author-avatar-text">{{ posterData.author?.name?.charAt(0) || '用' }}</span>
         <div class="author-name">{{ posterData.author?.name || '匿名用户' }}</div>
       </div>
 
@@ -105,6 +106,12 @@ const fmt = (n) => {
 .author-avatar {
   width: 32px; height: 32px; border-radius: 50%;
   object-fit: cover; border: 2px solid var(--color-border);
+  flex-shrink: 0;
+}
+.author-avatar-text {
+  background: var(--color-primary-bg); color: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; border: none;
 }
 .author-name { font-size: 13px; font-weight: 600; color: var(--color-text); }
 .author-time { font-size: 11px; color: var(--color-text-muted); }

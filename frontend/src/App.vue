@@ -33,7 +33,7 @@
             class="user-avatar-img"
             @error="e => e.target.style.display='none'"
           />
-          <span v-else class="user-avatar">👤</span>
+          <span v-else class="user-avatar">{{ auth.user.value?.nickname?.charAt(0) || '👤' }}</span>
           <span class="user-name">{{ auth.user.value?.nickname || '用户' }}</span>
         </div>
         <!-- 未登录：显示登录/注册按钮 -->

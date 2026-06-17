@@ -4,6 +4,7 @@
 import base64
 import json
 import re
+import requests
 from typing import List, Optional
 from openai import OpenAI
 from sqlalchemy.orm import Session
@@ -30,9 +31,15 @@ async def recognize_bird(image_path: str, db: Session) -> List[dict]:
 
 async def _qwen_recognize(image_path: str, db: Session) -> Optional[List[dict]]:
     """调用 Qwen3.6-Flash 识别鸟类"""
-    # 读取并编码图片
-    with open(image_path, "rb") as f:
-        image_data = base64.b64encode(f.read()).decode("utf-8")
+    # 读取并编码图片（兼容远程 URL 和本地路径）
+    if image_path.startswith("http://") or image_path.startswith("https://"):
+        resp = requests.get(image_path, timeout=30)
+        resp.raise_for_status()
+        image_bytes = resp.content
+    else:
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+    image_data = base64.b64encode(image_bytes).decode("utf-8")
 
     # 推断 MIME 类型
     ext = image_path.rsplit(".", 1)[-1].lower() if "." in image_path else "jpg"
